@@ -29,4 +29,11 @@ public struct Config
 
         return config;
     }
+
+    public static void SaveConfig(Stream stream, Config config)
+    {
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, true);
+        var bytes = MemoryMarshal.Cast<Config, byte>(new[] { config });
+        writer.Write(bytes);
+    }
 }
