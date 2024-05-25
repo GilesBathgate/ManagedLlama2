@@ -1,6 +1,5 @@
 #include "rmsnorm_kernel.cuh"
 
-#include "common.cuh"
 #include <cub/block/block_reduce.cuh>
 
 using BlockReduce = cub::BlockReduce<float, 1024>;

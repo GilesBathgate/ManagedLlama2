@@ -1,6 +1,5 @@
 #include "mat_vec_kernel.cuh"
 
-#include "common.cuh"
 #include <cub/warp/warp_reduce.cuh>
 
 using WarpReduce = cub::WarpReduce<float>;
