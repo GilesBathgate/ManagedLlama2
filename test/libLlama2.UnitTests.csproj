@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <BuildDir>$(SolutionDir)\native</BuildDir>
+    <BuildDir>..\native</BuildDir>
   </PropertyGroup>
 
   <ItemGroup>

@@ -39,9 +39,10 @@ public class Transformer
 
     private readonly ISampler sampler;
 
-    public Transformer(string modelPath) : this(File.OpenRead(modelPath)) {}
+    public Transformer(string modelPath, string tokenizerPath = "tokenizer.bin") :
+        this(File.OpenRead(modelPath), tokenizerPath) {}
 
-    public Transformer(FileStream fileStream)
+    public Transformer(FileStream fileStream, string tokenizerPath)
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
@@ -55,7 +56,7 @@ public class Transformer
 
         weights = new TransformerWeights(config, fileStream);
 
-        tokenizer = new Tokenizer("tokenizer.bin", config.vocabSize);
+        tokenizer = new Tokenizer(tokenizerPath, config.vocabSize);
 
         runstate = new RunState(cudaContext, ref config, kvDim);
 

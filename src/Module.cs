@@ -6,8 +6,11 @@ public abstract class Module
 {
     protected readonly CudaKernel kernel;
 
-    public Module(CudaContext cudaContext, string modulePath, string moduleName)
+    private static readonly string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
+    public Module(CudaContext cudaContext, string moduleFile, string moduleName)
     {
+        var modulePath = Path.Combine(baseDirectory, moduleFile);
         kernel = cudaContext.LoadKernel(modulePath, moduleName);
     }
 

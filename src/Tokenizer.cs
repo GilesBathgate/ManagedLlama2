@@ -30,7 +30,7 @@ public class Tokenizer : ITokenizer
         sortedVocab = new TokenIndex[vocabSize];
         vocabScores = new float[vocabSize];
 
-        using var fs = new FileStream(tokenizerPath, FileMode.Open, FileAccess.Read);
+        using var fs = File.OpenRead(tokenizerPath);
         using var reader = new BinaryReader(fs);
 
         maxTokenLength = reader.ReadInt32();
