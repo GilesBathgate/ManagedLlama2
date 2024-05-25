@@ -18,7 +18,7 @@ public class TransformerTests
         foreach(var s in stream)
             Console.Write(s);
 
-        var actual = transformer.testLogits!.Take(expected.Length);
+        var actual = transformer.testLogits.First().Take(expected.Length);
 
         Assert.Equal(expectedLogits, actual);
     }
