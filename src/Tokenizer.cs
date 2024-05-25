@@ -66,11 +66,17 @@ public class Tokenizer : ITokenizer
 
     public int[] Encode(string prompt, bool bos = false, bool eos = false)
     {
-        var tokens = new List<int>(prompt.Length + 2);
+        var tokens = new List<int>(prompt.Length + 3);
 
         // first encode every individual byte in the input string
 
         if (bos) tokens.Add(BOS);
+
+        if (!string.IsNullOrEmpty(prompt))
+        {
+            var dummy_prefix = StrLookup(" ");
+            tokens.Add(dummy_prefix);
+        }
 
         foreach (char c in prompt)
         {

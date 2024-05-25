@@ -11,7 +11,7 @@ public class TransformerTests
         var expected = "You are a helpful assistant.  You are able to assist the user in a variety of ways";
 
         var transformer = new Transformer("model-7b.bin");
-        var tokens = transformer.Generate(" You are a helpful assistant. ", 19);
+        var tokens = transformer.Generate("You are a helpful assistant. ", 19);
 
         var builder = new StringBuilder();
         foreach(var token in tokens)
@@ -27,7 +27,7 @@ public class TransformerTests
     {
         var tokenizer = new Tokenizer("tokenizer.bin", 32000);
 
-        var actual = tokenizer.Encode(" You are a helpful assistant", true, true);
+        var actual = tokenizer.Encode("You are a helpful assistant", true, true);
 
         var expected = new[] { 1, 887, 526, 263, 8444, 20255, 2 };
 
