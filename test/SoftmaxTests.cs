@@ -24,9 +24,7 @@ public class SoftmaxTests : IDisposable
     {
         var size = x.Length;
         var x1 = (CudaDeviceVariable<Half>)x;
-
-        var pPos = (CudaDeviceVariable<int>)(size - 1);
-        kernel.Run(x1.DevicePointer, 0, pPos.DevicePointer);
+        kernel.Run(x1.DevicePointer, size);
         return (Half[])x1;
     }
 

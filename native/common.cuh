@@ -3,8 +3,6 @@
 #include <cuda_runtime_api.h>
 #include <cub/cub.cuh>
 
-constexpr int MAX_SEQ_LEN_SMEM_KERNEL = 8192; // 8k is the max sequence length supported by the kernel that uses shared memory
-
 // utility function to load from memory (try different cache hints)
 #define USE_NO_CACHE_ALLOCATE_FOR_WEIGHT_LOADS 1
 #define USE_LDCS_FOR_WEIGHT_LOADS 0

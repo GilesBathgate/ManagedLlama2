@@ -1,47 +1,52 @@
 #include "softmax_kernel.cuh"
 
-__global__ void softmax_kernel(half* __restrict__ arr, int num_heads, int* pPos) {
-    __shared__ float att[MAX_SEQ_LEN_SMEM_KERNEL];
-    int h = blockIdx.x;
-    int tid = threadIdx.x;
-    int step = blockDim.x;
-    int size = *pPos + 1;
+#include <cub/block/block_reduce.cuh>
 
+constexpr int max_seqlen_shared_mem = 8192;
+
+using BlockReduce = cub::BlockReduce<float, 1024>;
+using BlockStorage = BlockReduce::TempStorage;
+
+template <typename T>
+inline __device__ void softmax(T* vector, const int size)
+{
     // load input to shared memory
-    for (int t = tid; t < size; t += step)
-        att[t] = (float)arr[h * size + t];
+    __shared__ float buffer[max_seqlen_shared_mem];
+    for (int i = threadIdx.x; i < size; i += blockDim.x)
+        buffer[i] = (float)vector[blockIdx.x * size + i];
     __syncthreads();
-
-    using BlockReduce = cub::BlockReduce<float, 1024>;
-    __shared__ typename BlockReduce::TempStorage temp;
-    __shared__ float shared_val;
 
     // find max value (for numerical stability)
-    float max_val = tid < size ? att[tid] : 0;
-    for (int i = tid + step; i < size; i += step)
-        if (att[i] > max_val)
-            max_val = att[i];
+    float max_val = threadIdx.x < size ? buffer[threadIdx.x] : 0;
+    for (int i = threadIdx.x + blockDim.x; i < size; i += blockDim.x)
+        if (buffer[i] > max_val)
+            max_val = buffer[i];
 
-    max_val = BlockReduce(temp).Reduce(max_val, cub::Max());
-    if (threadIdx.x == 0)
-        shared_val = max_val;
+    __shared__ float shared;
+    __shared__ BlockStorage storage;
+    max_val = BlockReduce(storage).Reduce(max_val, cub::Max());
+    if (threadIdx.x == 0) shared = max_val;
     __syncthreads();
-    max_val = shared_val;
+    max_val = shared;
 
     // exp and sum
     float sum = 0.0f;
-    for (int i = tid; i < size; i += step) {
-        att[i] = expf(att[i] - max_val);
-        sum += att[i];
+    for (int i = threadIdx.x; i < size; i += blockDim.x) {
+        buffer[i] = expf(buffer[i] - max_val);
+        sum += buffer[i];
     }
 
-    sum = BlockReduce(temp).Sum(sum);
-    if (threadIdx.x == 0)
-        shared_val = sum;
+    sum = BlockReduce(storage).Sum(sum);
+    if (threadIdx.x == 0) shared = sum;
     __syncthreads();
-    sum = shared_val;
+    sum = shared;
 
     // normalize and write the result
-    for (int t = tid; t < size; t += step)
-        arr[h * size + t] = (half)(att[t] / sum);
+    for (int i = threadIdx.x; i < size; i += blockDim.x)
+        vector[blockIdx.x * size + i] = (T)(buffer[i] / sum);
+}
+
+__global__ void softmax_kernel(half* vector, const int size)
+{
+    return softmax<half>(vector, size);
 }

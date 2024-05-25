@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_runtime_api.h>
-#include <cub/cub.cuh>
-#include "common.cuh"
+#include <cuda_fp16.h>
 
-extern "C" __global__ void softmax_kernel(half* __restrict__ arr, int num_heads, int* pPos);
+extern "C" __global__ void softmax_kernel(half* vector, const int size);
