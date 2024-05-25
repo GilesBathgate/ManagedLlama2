@@ -14,10 +14,15 @@ public partial class TokenizerConverter
 
     public TokenizerConverter(string tokenizerPath, bool download = false)
     {
-        if (!File.Exists(tokenizerPath))
+        if (download)
         {
-            if (!download) throw new ArgumentException("Download set to false and tokeniser path does not exist");
-            Downloader.DownloadDefaultTokeniser(tokenizerPath);
+            var downloader = new TokenizerDownloader(tokenizerPath);
+            downloader.Download();
+        }
+        else
+        {
+            if (!File.Exists(tokenizerPath))
+                throw new ArgumentException("Download set to false and tokeniser path does not exist");
         }
 
         this.tokenizerPath = tokenizerPath;

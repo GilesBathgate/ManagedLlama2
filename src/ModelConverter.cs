@@ -21,16 +21,15 @@ public class ModelConverter
 
     public ModelConverter(string modelPath, string configPath, bool download = false)
     {
-        if (!File.Exists(modelPath))
-        {
-            if (!download) throw new ArgumentException("Download set to false and model path does not exist");
-            Downloader.DownloadDefaultModel(modelPath);
-        }
+        if (download) {
+            var downloader = new Model7bDownloader(modelPath, configPath);
+            downloader.Download();
+        } else {
+            if(!File.Exists(modelPath))
+                throw new ArgumentException("Download set to false and model path does not exist");
 
-        if (!File.Exists(configPath))
-        {
-            if (!download) throw new ArgumentException("Download set to false and config path does not exist");
-            Downloader.DownloadDefaultConfig(configPath);
+            if (!File.Exists(configPath))
+                throw new ArgumentException("Download set to false and config path does not exist");
         }
 
         this.modelPath = modelPath;
