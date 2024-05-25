@@ -1,5 +1,7 @@
 ## ManagedLlama2
 
+![Managed Llama2](managedLlama.png)
+
 Llama2 inference for 4-bit AWQ quantized models with C# and [ManagedCuda](https://github.com/kunzmi/managedCuda)
 
 Based on [llama2.c](https://github.com/karpathy/llama2.c) and [llama_cu_awq](https://github.com/ankan-ban/llama_cu_awq)
