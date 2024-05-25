@@ -8,7 +8,7 @@ extern "C" __global__ void mat_vec_kernel(half* output, const half* vector, cons
 extern "C" __global__ void mat_vec_strided_kernel(half* output, const half* vector, const half* matrix, const int rows, const int cols,
     const int v_stride, const int m_col_stride, const int m_row_stride, const int o_stride, const float alpha);
 
-__global__ void mat_vec_kernel_int4(half* __restrict__ output, const half* __restrict__ input,
+extern "C" __global__ void mat_vec_kernel_int4(half* __restrict__ output, const half* __restrict__ input,
     const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ scales,
     int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height, bool accum, int loff, int* pPos);
 
