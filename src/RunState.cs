@@ -23,4 +23,6 @@ public class RunState
     public required CudaDeviceVariable<Half> valueCache; // (layer, seq_len, kv_dim)
 
     public required CudaDeviceVariable<float> logitsArray;  // array of output logits used to compute perplexity (seq_len, vocab_size)
+
+    public required CudaDeviceVariable<int> tokens;
 }

@@ -92,15 +92,14 @@ public class Transformer
         var token = promptTokens[0];
         var pos = 0;
 
-        var tokens = new CudaDeviceVariable<int>(config.seq_len);
-        tokens.CopyToDevice(promptTokens);
+        runstate.tokens.CopyToDevice(promptTokens);
 
         Half[]? testLogits = null;
 
         while(pos < steps) {
 
             var seq_len_bin = pos + 1;
-            Forward(pos, tokens, seq_len_bin);
+            Forward(pos, seq_len_bin);
 
             testLogits ??= runstate.logits;
 
@@ -167,7 +166,8 @@ public class Transformer
             logits = new CudaDeviceVariable<Half>(config.vocab_size),
             keyCache = new CudaDeviceVariable<Half>(config.n_layers * config.seq_len * kvDim),
             valueCache = new CudaDeviceVariable<Half>(config.n_layers * config.seq_len * kvDim),
-            logitsArray = new CudaDeviceVariable<float>(config.seq_len * config.vocab_size)
+            logitsArray = new CudaDeviceVariable<float>(config.seq_len * config.vocab_size),
+            tokens = new CudaDeviceVariable<int>(config.seq_len)
         };
 
     private CudaKernel InitEmbeddingKernel()
@@ -382,12 +382,12 @@ public class Transformer
         ropeKernel.Run(query.DevicePointer, key.DevicePointer + offset, headSize, numHeads, numKVHeads, pos, theta);
     }
 
-    private void Forward(int position, CudaDeviceVariable<int> tokens, int seq_len_bin)
+    private void Forward(int position, int seq_len_bin)
     {
         var headSize =  config.dim / config.n_heads;
         var scale = 1.0f / MathF.Sqrt(headSize);
 
-        Embedding(runstate.x, weights.tokenEmbeddingTable, config.dim, tokens, position);
+        Embedding(runstate.x, weights.tokenEmbeddingTable, config.dim, runstate.tokens, position);
 
         foreach (var (i, layer) in weights.layers.Enumerate())
         {
