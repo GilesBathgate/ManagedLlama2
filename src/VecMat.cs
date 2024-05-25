@@ -16,5 +16,5 @@ public class VecMat : Module
 
     public void Forward(CudaDeviceVariable<Half> output, CudaDeviceVariable<Half> value,
                         CudaDeviceVariable<Half> attention, int headSize, int dim, int seqLength, SizeT layerOffset) =>
-        kernel.Run(output.DevicePointer, attention.DevicePointer, value.OffsetPointer(layerOffset), headSize, seqLength, headSize, headSize, dim);
+        base.Forward(output.DevicePointer, attention.DevicePointer, value.OffsetPointer(layerOffset), headSize, seqLength, headSize, headSize, dim);
 }

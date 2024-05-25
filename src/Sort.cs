@@ -12,5 +12,5 @@ public class Sort : Module
     }
 
     public void Forward(CudaDeviceVariable<Half> logits, CudaDeviceVariable<int> indices, int size) =>
-        kernel.Run(logits.DevicePointer, indices.DevicePointer, size);
+        base.Forward(logits.DevicePointer, indices.DevicePointer, size);
 }

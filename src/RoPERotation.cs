@@ -20,6 +20,6 @@ public class RoPERotation : Module
                         int numKVHeads, int headSize, int pos, SizeT layerOffset, float theta)
     {
         SizeT offset = layerOffset + pos * kvDim;
-        kernel.Run(query.DevicePointer, key.OffsetPointer(offset), numKVHeads, headSize, pos, theta);
+        base.Forward(query.DevicePointer, key.OffsetPointer(offset), numKVHeads, headSize, pos, theta);
     }
 }

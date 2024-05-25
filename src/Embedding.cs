@@ -12,5 +12,5 @@ public class Embedding : Module
     }
 
     public void Forward(CudaDeviceVariable<Half> output, CudaDeviceVariable<Half> table, int size, CudaDeviceVariable<int> tokens, int pos) =>
-        kernel.Run(output.DevicePointer, table.DevicePointer, size, tokens.DevicePointer, pos);
+        base.Forward(output.DevicePointer, table.DevicePointer, size, tokens.DevicePointer, pos);
 }

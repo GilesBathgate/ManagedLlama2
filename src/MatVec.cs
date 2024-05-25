@@ -13,5 +13,5 @@ public class MatVec : Module
     }
 
     public void Forward(CudaDeviceVariable<Half> output, CudaDeviceVariable<Half> input, CudaDeviceVariable<Half> matrix, int rows, int cols) =>
-        kernel.Run(output.DevicePointer, input.DevicePointer, matrix.DevicePointer, rows, cols);
+        base.Forward(output.DevicePointer, input.DevicePointer, matrix.DevicePointer, rows, cols);
 }

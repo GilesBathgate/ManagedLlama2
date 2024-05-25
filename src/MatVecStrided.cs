@@ -15,6 +15,6 @@ public class MatVecStrided : Module
 
     public void Forward(CudaDeviceVariable<Half> attention, CudaDeviceVariable<Half> query, CudaDeviceVariable<Half> key,
                         int headSize, int dim, int seqLength, SizeT layerOffset, float scale) =>
-        kernel.Run(attention.DevicePointer, query.DevicePointer, key.OffsetPointer(layerOffset), headSize, seqLength, headSize, headSize, dim, seqLength, scale);
+        base.Forward(attention.DevicePointer, query.DevicePointer, key.OffsetPointer(layerOffset), headSize, seqLength, headSize, headSize, dim, seqLength, scale);
 
 }

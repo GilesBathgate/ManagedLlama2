@@ -17,9 +17,9 @@ public class MatVecResidual : Module
         var scalesSize = CeilDiv(rows, 128);
         var weightsSize = CeilDiv(rows, 32) * 4;
         var zerosSize = CeilDiv(scalesSize, 8);
-        kernel.Run(output.DevicePointer, input.DevicePointer,
-                   matrix.Weight.DevicePointer, matrix.Zeros.DevicePointer, matrix.Scales.DevicePointer,
-                   rows, cols, zerosSize, scalesSize, weightsSize);
+        base.Forward(output.DevicePointer, input.DevicePointer,
+                     matrix.Weight.DevicePointer, matrix.Zeros.DevicePointer, matrix.Scales.DevicePointer,
+                     rows, cols, zerosSize, scalesSize, weightsSize);
     }
 
 }

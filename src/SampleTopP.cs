@@ -12,5 +12,5 @@ public class SampleTopP : Module
     }
 
     public void Forward(CudaDeviceVariable<Half> logits, CudaDeviceVariable<int> indices, int size, float threshold, CudaDeviceVariable<int> tokens, int nextPos) =>
-        kernel.Run(logits.DevicePointer, indices.DevicePointer, size, threshold, tokens.DevicePointer, nextPos);
+        base.Forward(logits.DevicePointer, indices.DevicePointer, size, threshold, tokens.DevicePointer, nextPos);
 }

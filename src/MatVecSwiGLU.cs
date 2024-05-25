@@ -17,9 +17,9 @@ public class MatVecSwiGLU : Module
         var scalesSize = CeilDiv(rows, 128);
         var weightsSize = CeilDiv(rows, 32) * 4;
         var zerosSize = CeilDiv(scalesSize, 8);
-        kernel.Run(output.DevicePointer, input.DevicePointer,
-                   g.Weight.DevicePointer, g.Zeros.DevicePointer, g.Scales.DevicePointer,
-                   u.Weight.DevicePointer, u.Zeros.DevicePointer, u.Scales.DevicePointer,
-                   rows, cols, zerosSize, scalesSize, weightsSize);
+        base.Forward(output.DevicePointer, input.DevicePointer,
+                     g.Weight.DevicePointer, g.Zeros.DevicePointer, g.Scales.DevicePointer,
+                     u.Weight.DevicePointer, u.Zeros.DevicePointer, u.Scales.DevicePointer,
+                     rows, cols, zerosSize, scalesSize, weightsSize);
     }
 }

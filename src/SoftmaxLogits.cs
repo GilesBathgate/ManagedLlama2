@@ -12,5 +12,5 @@ public class SoftmaxLogits : Module
     }
 
     public void Forward(CudaDeviceVariable<Half> logits, int size, float temperature, CudaDeviceVariable<int> indices) =>
-        kernel.Run(logits.DevicePointer, size, temperature, indices.DevicePointer);
+        base.Forward(logits.DevicePointer, size, temperature, indices.DevicePointer);
 }

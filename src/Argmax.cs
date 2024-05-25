@@ -12,5 +12,5 @@ public class Argmax : Module
     }
 
     public void Forward(CudaDeviceVariable<Half> logits, int vocabSize, CudaDeviceVariable<int> tokens, int nextPos, bool generateToken) =>
-        kernel.Run(logits.DevicePointer, vocabSize, tokens.DevicePointer, nextPos, generateToken);
+        base.Forward(logits.DevicePointer, vocabSize, tokens.DevicePointer, nextPos, generateToken);
 }

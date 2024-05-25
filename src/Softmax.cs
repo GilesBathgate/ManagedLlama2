@@ -12,5 +12,5 @@ public class Softmax : Module
     }
 
     public void Forward(CudaDeviceVariable<Half> attention, int seqLength) =>
-        kernel.Run(attention.DevicePointer, seqLength);
+        base.Forward(attention.DevicePointer, seqLength);
 }

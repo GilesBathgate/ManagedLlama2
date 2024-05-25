@@ -23,11 +23,11 @@ public class QKVMatVec : Module
         var weightsSize = CeilDiv(rows, 32) * 4;
         var zerosSize = CeilDiv(scalesSize, 8);
         SizeT offset = layerOffset + pos * kvDim;
-        kernel.Run(queryOutput.DevicePointer, keyOutput.OffsetPointer(offset), valueOutput.OffsetPointer(offset), input.DevicePointer,
-                   query.Weight.DevicePointer, query.Zeros.DevicePointer, query.Scales.DevicePointer,
-                   key.Weight.DevicePointer, key.Zeros.DevicePointer, key.Scales.DevicePointer,
-                   value.Weight.DevicePointer, value.Zeros.DevicePointer, value.Scales.DevicePointer,
-                   rows, cols, zerosSize, scalesSize, weightsSize);
+        base.Forward(queryOutput.DevicePointer, keyOutput.OffsetPointer(offset), valueOutput.OffsetPointer(offset), input.DevicePointer,
+                     query.Weight.DevicePointer, query.Zeros.DevicePointer, query.Scales.DevicePointer,
+                     key.Weight.DevicePointer, key.Zeros.DevicePointer, key.Scales.DevicePointer,
+                     value.Weight.DevicePointer, value.Zeros.DevicePointer, value.Scales.DevicePointer,
+                     rows, cols, zerosSize, scalesSize, weightsSize);
     }
 
 }

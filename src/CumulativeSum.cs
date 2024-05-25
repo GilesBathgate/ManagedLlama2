@@ -12,5 +12,5 @@ public class CumulativeSum : Module
     }
 
     public void Forward(CudaDeviceVariable<Half> logits, int size) =>
-        kernel.Run(logits.DevicePointer, size);
+        base.Forward(logits.DevicePointer, size);
 }
