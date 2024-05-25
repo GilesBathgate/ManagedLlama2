@@ -39,6 +39,8 @@ public class Transformer
 
     private readonly TransformerWeights weights;
 
+    private readonly ITokenizer tokenizer;
+
     public Transformer(string modelPath) : this(File.OpenRead(modelPath)) {}
 
     public Transformer(FileStream fileStream)
@@ -54,6 +56,8 @@ public class Transformer
             throw new NotImplementedException("Differing kvDim dimention not currently supported.");
 
         weights = CheckpointInitWeights(fileStream);
+
+        tokenizer = new Tokenizer("tokenizer.bin", config.vocab_size);
 
         runstate = InitRunState();
 
@@ -80,15 +84,44 @@ public class Transformer
         fileStream.Close();
     }
 
-    public Half[] Run(int[] prompt)
+    public Half[] Run(string prompt, int steps)
     {
+        var promptTokens = tokenizer.Encode(prompt, true);
+
+        var next = 0;
+        var token = promptTokens[0];
         var pos = 0;
+
         var tokens = new CudaDeviceVariable<int>(config.seq_len);
-        tokens.CopyToDevice(prompt);
+        tokens.CopyToDevice(promptTokens);
 
-        RunNetwork(pos, tokens, pos + 1);
+        Half[]? testLogits = null;
 
-        return runstate.logits;
+        while(pos < steps) {
+
+            var seq_len_bin = pos + 1;
+            Forward(pos, tokens, seq_len_bin);
+
+            testLogits ??= runstate.logits;
+
+            if (pos < promptTokens.Length - 1) {
+                // if we are still processing the input prompt, force the next prompt token
+                next = promptTokens[pos + 1];
+            } else {
+                // otherwise sample the next token from the logits
+            }
+            ++pos;
+
+            // data-dependent terminating condition: the BOS (=1) token delimits sequences
+            if (next == 1) { break; }
+
+            // print the token as string, decode it with the Tokenizer object
+            var piece = tokenizer.Decode(token, next);
+            Console.Write(piece);
+            token = next;
+        }
+
+        return testLogits!;
     }
 
     private static int CeilDiv(int a, int b) =>
@@ -349,7 +382,7 @@ public class Transformer
         ropeKernel.Run(query.DevicePointer, key.DevicePointer + offset, headSize, numHeads, numKVHeads, pos, theta);
     }
 
-    private void RunNetwork(int position, CudaDeviceVariable<int> tokens, int seq_len_bin)
+    private void Forward(int position, CudaDeviceVariable<int> tokens, int seq_len_bin)
     {
         var headSize =  config.dim / config.n_heads;
         var scale = 1.0f / MathF.Sqrt(headSize);

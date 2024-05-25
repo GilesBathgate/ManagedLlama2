@@ -13,14 +13,24 @@ public class TransformerTests
 
         var expectedLogits = expected.Select(ToHalf);
 
-        //                 <BOS> You are a helpful assistant
-        var prompt = new[] { 1, 887, 526, 263, 8444, 20255 };
-
         var transformer = new Transformer("model-7b.bin");
-        var logits = transformer.Run(prompt);
+        var logits = transformer.Run(" You are a helpful assistant", 5);
 
         var actual = logits.Take(expected.Length);
 
         Assert.Equal(expectedLogits, actual);
+    }
+
+    [Fact(Skip = "Requires tokenizer.bin")]
+    public void Test_Tokenizer()
+    {
+        var tokenizer = new Tokenizer("tokenizer.bin", 32000);
+
+        var actual = tokenizer.Encode(" You are a helpful assistant", true, true);
+
+        var expected = new[] { 1, 887, 526, 263, 8444, 20255, 2 };
+
+        Assert.Equal(expected, actual);
+
     }
 }
