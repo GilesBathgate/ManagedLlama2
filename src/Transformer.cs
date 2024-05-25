@@ -39,10 +39,11 @@ public class Transformer : ITransformer
 
     private readonly ISampler sampler;
 
-    public Transformer(string modelPath, string tokenizerPath = "tokenizer.bin") :
-        this(File.OpenRead(modelPath), tokenizerPath) {}
+    public Transformer(string modelPath, string tokenizerPath = "tokenizer.bin", float temperature = 0.5f, float topP = 0.9f) :
+        this(File.OpenRead(modelPath), tokenizerPath, temperature, topP)
+    { }
 
-    public Transformer(FileStream fileStream, string tokenizerPath)
+    public Transformer(FileStream fileStream, string tokenizerPath, float temperature, float topP)
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
@@ -60,7 +61,7 @@ public class Transformer : ITransformer
 
         runstate = new RunState(cudaContext, ref config, kvDim);
 
-        sampler = new Sampler(cudaContext, config, runstate);
+        sampler = new Sampler(cudaContext, config, runstate, temperature, topP);
 
         embedding = new Embedding(cudaContext, config);
 

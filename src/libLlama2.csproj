@@ -36,6 +36,15 @@
     <EmbeddedResource Include="$(BuildDir)\softmax_logits_kernel.ptx">
       <LogicalName>softmax_logits_kernel.ptx</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\cumulative_sum_kernel.ptx">
+      <LogicalName>cumulative_sum_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\sample_top_p_kernel.ptx">
+      <LogicalName>sample_top_p_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\sort_kernel.ptx">
+      <LogicalName>sort_kernel.ptx</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="$(BuildDir)\vec_mat_kernel.ptx">
       <LogicalName>vec_mat_kernel.ptx</LogicalName>
     </EmbeddedResource>

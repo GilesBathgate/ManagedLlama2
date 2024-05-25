@@ -22,6 +22,8 @@ public class RunState
 
     public readonly CudaDeviceVariable<int> tokens;
 
+    public readonly CudaDeviceVariable<int> indices;
+
     public RunState(CudaContext cudaContext, ref Config config, int kvDim)
     {
         int CalculateMaxUsableSequence(Config config)
@@ -30,7 +32,9 @@ public class RunState
             const int sizeofHalf = 2;
             const int kernelMem = 8 * 1024 * 1024; // 8 MiB reserve for kernels etc.
             var remaining = cudaContext.GetFreeDeviceMemorySize() - kernelMem;
-            var required = config.numLayers * seqLength * kvDim * sizeofHalf * 2 + seqLength * sizeof(int);
+            var required = config.numLayers * seqLength * kvDim * sizeofHalf * 2 +
+                           seqLength * sizeof(int) +
+                           config.vocabSize * sizeof(int);
             return Math.Min(remaining / required, config.seqLength);
         }
 
@@ -46,5 +50,6 @@ public class RunState
         keyCache = new CudaDeviceVariable<Half>(config.numLayers * config.seqLength * kvDim);
         valueCache = new CudaDeviceVariable<Half>(config.numLayers * config.seqLength * kvDim);
         tokens = new CudaDeviceVariable<int>(config.seqLength);
+        indices = new CudaDeviceVariable<int>(config.vocabSize);
     }
 }
