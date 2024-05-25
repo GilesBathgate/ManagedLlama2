@@ -12,7 +12,7 @@ public class ConvertTests : IDisposable
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
-        kernel = cudaContext.LoadKernel("convert_kernel.ptx", "convert_fp16_to_fp32");
+        kernel = cudaContext.LoadKernel("convert_kernel.ptx", "convert_kernel");
         kernel.GridDimensions = 1;
         kernel.BlockDimensions = 1024;
     }
