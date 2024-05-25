@@ -1,36 +1,37 @@
 #include "mat_vec_kernel.cuh"
 
-// Only used for the final linear layer to get logits (for most other layers we use the INT4 version below)
-__global__ void mat_vec_kernel(half* op, const half* ip, const half* wt, int n, int d, int numSerialLoads,
-    int ip_stride, int w_stride, int op_stride, int w_row_stride, float alpha) {
-    int index = blockIdx.x * blockDim.y + threadIdx.y;
-    if (index >= d)
-        return;
-    const half* __restrict__ input = ip + blockIdx.y * ip_stride;
-    const half* __restrict__ weight = wt + blockIdx.y * w_stride;
-    half* output = op + blockIdx.y * op_stride;
+#include "common.cuh"
+#include <cub/warp/warp_reduce.cuh>
 
-    float sum = 0;
+using WarpReduce = cub::WarpReduce<float>;
+using WarpStorage = WarpReduce::TempStorage;
 
-    for (int i = 0; i < numSerialLoads; i++) {
-        int j = (i * 32 + threadIdx.x) * 8;
-        if (j < n) {
-            half w[8];
-            half ip[8];
-            *((uint4*)(&w)) = loadFromMem((uint4*)(&weight[index * w_row_stride + j]));
-            *((uint4*)(&ip)) = *((uint4*)(&input[j]));
-            for (int el = 0; el < 8; el++)
-                sum += float(w[el]) * float(ip[el]);
-        }
+template <typename T>
+inline __device__ void mat_vec(T* output, const T* vector, const T* matrix, const int rows, const int cols)
+{
+    const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
+
+    if (col_index >= cols) return;
+
+    const int index = col_index * rows + blockIdx.y;
+
+    float sum = 0.0f;
+    for (int row_index = threadIdx.x; row_index < rows; row_index += blockDim.x) {
+        const int mat_index = index + row_index;
+        const int vec_index = row_index + blockIdx.y;
+        sum += (float)matrix[mat_index] * (float)vector[vec_index];
     }
 
-    using WarpReduce = cub::WarpReduce<float>;
-    __shared__ typename WarpReduce::TempStorage temp;
-    sum = WarpReduce(temp).Sum(sum);
-    sum *= alpha;
+    __shared__ WarpStorage storage;
+    sum = WarpReduce(storage).Sum(sum);
 
     if (threadIdx.x == 0)
-        output[index] = (half)sum;
+        output[col_index + blockIdx.y] = (T)sum;
+}
+
+__global__ void mat_vec_kernel(half* output, const half* vector, const half* matrix, const int rows, const int cols)
+{
+    return mat_vec<half>(output, vector, matrix, rows, cols);
 }
 
 // Simpler version of the above - handles non multiple of 8 dimensions too (used only by MHA block)

@@ -1,12 +1,9 @@
 #pragma once
 
-#include <cuda_runtime_api.h>
-#include <cub/cub.cuh>
-#include "common.cuh"
+#include <cstdint>
+#include <cuda_fp16.h>
 
-// Only used for the final linear layer to get logits (for most other layers we use the INT4 version below)
-extern "C" __global__ void mat_vec_kernel(half* op, const half* ip, const half* wt, int n, int d, int numSerialLoads,
-    int ip_stride, int w_stride, int op_stride, int w_row_stride, float alpha);
+extern "C" __global__ void mat_vec_kernel(half* output, const half* vector, const half* matrix, const int rows, const int cols);
 
 // Simpler version of the above - handles non multiple of 8 dimensions too (used only by MHA block)
 __global__ void mat_vec_kernel_simple(half* op, half* ip, half* wt, int n, int numSerialElements,

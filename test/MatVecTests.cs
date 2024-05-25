@@ -30,13 +30,11 @@ public class MatVecTests : IDisposable
         var v = (CudaDeviceVariable<Half>)vector;
         var result = new CudaDeviceVariable<Half>(v.Size);
 
-        int serialLoads = ceil_div(ceil_div(rows, 32), 8);
-
         kernel.GridDimensions = new dim3(ceil_div(cols, 4), 1);
         kernel.BlockDimensions = new dim3(32, 32);
         kernel.DynamicSharedMemory = 0;
 
-        kernel.Run(result.DevicePointer, v.DevicePointer, m.DevicePointer, rows, cols, serialLoads, 0, 0, 0, rows, 1.0f);
+        kernel.Run(result.DevicePointer, v.DevicePointer, m.DevicePointer, rows, cols);
         return (Half[])result;
     }
 
