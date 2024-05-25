@@ -132,10 +132,11 @@ inline __device__ float sum_mat_vec_int4(const T* input, const uint32_t* weights
     return sum;
 }
 
-__global__ void mat_vec_residual_int4_kernel(half* output, const half* input, const uint32_t* weights, const uint32_t* zeros, const half* scales,
+template <typename T>
+inline __device__ void mat_vec_residual_int4(T* output, const T* input, const uint32_t* weights, const uint32_t* zeros, const half* scales,
     const int rows, const int cols, const int zeros_size, const int scales_size, const int weights_size)
 {
-    float sum = sum_mat_vec_int4<half>(input, weights, zeros, scales, rows, cols, zeros_size, scales_size, weights_size);
+    float sum = sum_mat_vec_int4<T>(input, weights, zeros, scales, rows, cols, zeros_size, scales_size, weights_size);
 
     if (threadIdx.x == 0) {
         const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
@@ -143,44 +144,53 @@ __global__ void mat_vec_residual_int4_kernel(half* output, const half* input, co
 
         sum += (float)output[col_index]; // Residual accumulation
 
-        output[col_index] = (half)sum;
+        output[col_index] = (T)sum;
     }
 }
 
-__device__ void mat_vec_int4(half* __restrict__ output, const half* __restrict__ input,
-    const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ scales,
-    int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height, bool accum, int loff, int* pPos)
+__global__ void mat_vec_residual_int4_kernel(half* output, const half* input, const uint32_t* weights, const uint32_t* zeros, const half* scales,
+    const int rows, const int cols, const int zeros_size, const int scales_size, const int weights_size)
 {
-    int index = blockIdx.x * blockDim.y + threadIdx.y;
-    if (index >= opElements)
-        return;
+    return mat_vec_residual_int4<half>(output, input, weights, zeros, scales, rows, cols, zeros_size, scales_size, weights_size);
+}
 
-
-    float sum = sum_mat_vec_int4(input, q_weight, q_zeros, scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
+template <typename T>
+inline __device__ void mat_vec_int4(T* output, const T* input, const uint32_t* weights, const uint32_t* zeros, const half* scales,
+    const int rows, const int cols, const int zeros_size, const int scales_size, const int weights_size)
+{
+    float sum = sum_mat_vec_int4<T>(input, weights, zeros, scales, rows, cols, zeros_size, scales_size, weights_size);
 
     if (threadIdx.x == 0) {
-        if (loff != -1) {
-            output += loff + (*pPos * opElements);
-        }
-
-        if (accum)
-            sum += (float)output[index];
-        output[index] = (half)sum;
+        const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
+        if (col_index >= cols) return;
+        output[col_index] = (T)sum;
     }
 }
 
-__global__ void qkv_matvec_kernel(half* __restrict__ q, half* __restrict__ key_cache, half* __restrict__ value_cache, const half* __restrict__ input,
-    const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ q_scales,
-    const uint32_t* __restrict__ k_weight, const uint32_t* __restrict__ k_zeros, const half* __restrict__ k_scales,
-    const uint32_t* __restrict__ v_weight, const uint32_t* __restrict__ v_zeros, const half* __restrict__ v_scales,
-    int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height, int loff, int* pPos)
+template <typename T>
+inline __device__ void qkv_mat_vec(T*  q_output, T*  k_output, T*  v_output, const T*  input,
+    const uint32_t* q_weight, const uint32_t* q_zeros, const half*  q_scales,
+    const uint32_t* k_weight, const uint32_t* k_zeros, const half*  k_scales,
+    const uint32_t* v_weight, const uint32_t* v_zeros, const half*  v_scales,
+    const int rows, const int cols, int zeros_size, int scales_size, int weights_size)
 {
     if (blockIdx.y == 0)
-        mat_vec_int4(q, input, q_weight, q_zeros, q_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height, false, -1, nullptr);
+        mat_vec_int4<T>(q_output, input, q_weight, q_zeros, q_scales, rows, cols, zeros_size, scales_size, weights_size);
     else if (blockIdx.y == 1)
-        mat_vec_int4(key_cache, input, k_weight, k_zeros, k_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height, false, loff, pPos);
+        mat_vec_int4<T>(k_output, input, k_weight, k_zeros, k_scales, rows, cols, zeros_size, scales_size, weights_size);
     else // if (blockIdx.y == 2)
-        mat_vec_int4(value_cache, input, v_weight, v_zeros, v_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height, false, loff, pPos);
+        mat_vec_int4<T>(v_output, input, v_weight, v_zeros, v_scales, rows, cols, zeros_size, scales_size, weights_size);
+}
+
+__global__ void qkv_mat_vec_kernel(half* q_output, half* k_output, half* v_output, const half* input,
+    const uint32_t* q_weight, const uint32_t* q_zeros, const half*  q_scales,
+    const uint32_t* k_weight, const uint32_t* k_zeros, const half*  k_scales,
+    const uint32_t* v_weight, const uint32_t* v_zeros, const half*  v_scales,
+    const int rows, const int cols, const int zeros_size, const int scales_size, const int weights_size)
+{
+    return qkv_mat_vec<half>(q_output, k_output, v_output, input,
+                             q_weight, q_zeros, q_scales, k_weight, k_zeros, k_scales, v_weight, v_zeros, v_scales,
+                             rows, cols, zeros_size, scales_size, weights_size);
 }
 
 __global__ void ffn_matvec_silu_kernel(half* __restrict__ output, const half* __restrict__ input,
