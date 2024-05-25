@@ -6,7 +6,7 @@
 extern "C" __global__ void mat_vec_kernel(half* output, const half* vector, const half* matrix, const int rows, const int cols);
 
 // Simpler version of the above - handles non multiple of 8 dimensions too (used only by MHA block)
-__global__ void mat_vec_kernel_simple(half* op, half* ip, half* wt, int n, int numSerialElements,
+extern "C" __global__ void mat_vec_kernel_simple(half* op, half* ip, half* wt, int n, int numSerialElements,
     int ip_stride, int w_stride, int w_row_stride, float alpha, int* pPos, int kv_mul);
 
 // hardcoded for group-count = 128
