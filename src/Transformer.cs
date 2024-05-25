@@ -80,13 +80,15 @@ public class Transformer
         fileStream.Close();
     }
 
-    public void Run(int[] prompt)
+    public Half[] Run(int[] prompt)
     {
         var pos = 0;
         var tokens = new CudaDeviceVariable<int>(config.seq_len);
         tokens.CopyToDevice(prompt);
 
         RunNetwork(pos, tokens, pos + 1);
+
+        return runstate.logits;
     }
 
     private static int CeilDiv(int a, int b) =>
