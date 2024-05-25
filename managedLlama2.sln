@@ -3,9 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "libLlama2", "src\libLlama2.csproj", "{422210C0-172E-4DE4-A0A0-4D4CE6E8B7B5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "libLlama2", "src\libLlama2.csproj", "{13145083-EF8B-45A7-9B5D-65E2C083AADC}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "libLlama2.UnitTests", "test\libLlama2.UnitTests.csproj", "{9918ED45-E15B-4222-8451-F3CEFCEA8D8E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "libLlama2.UnitTests", "test\libLlama2.UnitTests.csproj", "{DDC6E95E-D974-4BFC-A655-1C1F528E8FF4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{4C26FA5D-0E8C-4217-944C-3014A4D58E63}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebAPI", "examples\WebAPI\WebAPI.csproj", "{90FE6ABB-9207-4387-89AF-DC8A1493D56D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebSocket", "examples\WebSocket\WebSocket.csproj", "{4397DA05-265D-485E-84AB-A8E1DDC086F3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Console", "examples\Console\Console.csproj", "{3A7B2FF0-AAA5-489E-9D08-18F466FF4B6E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,19 +21,36 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{422210C0-172E-4DE4-A0A0-4D4CE6E8B7B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{422210C0-172E-4DE4-A0A0-4D4CE6E8B7B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{422210C0-172E-4DE4-A0A0-4D4CE6E8B7B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{422210C0-172E-4DE4-A0A0-4D4CE6E8B7B5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9918ED45-E15B-4222-8451-F3CEFCEA8D8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9918ED45-E15B-4222-8451-F3CEFCEA8D8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9918ED45-E15B-4222-8451-F3CEFCEA8D8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9918ED45-E15B-4222-8451-F3CEFCEA8D8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13145083-EF8B-45A7-9B5D-65E2C083AADC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13145083-EF8B-45A7-9B5D-65E2C083AADC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13145083-EF8B-45A7-9B5D-65E2C083AADC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13145083-EF8B-45A7-9B5D-65E2C083AADC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DDC6E95E-D974-4BFC-A655-1C1F528E8FF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDC6E95E-D974-4BFC-A655-1C1F528E8FF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDC6E95E-D974-4BFC-A655-1C1F528E8FF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDC6E95E-D974-4BFC-A655-1C1F528E8FF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{90FE6ABB-9207-4387-89AF-DC8A1493D56D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{90FE6ABB-9207-4387-89AF-DC8A1493D56D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{90FE6ABB-9207-4387-89AF-DC8A1493D56D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{90FE6ABB-9207-4387-89AF-DC8A1493D56D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4397DA05-265D-485E-84AB-A8E1DDC086F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4397DA05-265D-485E-84AB-A8E1DDC086F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4397DA05-265D-485E-84AB-A8E1DDC086F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4397DA05-265D-485E-84AB-A8E1DDC086F3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3A7B2FF0-AAA5-489E-9D08-18F466FF4B6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A7B2FF0-AAA5-489E-9D08-18F466FF4B6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A7B2FF0-AAA5-489E-9D08-18F466FF4B6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A7B2FF0-AAA5-489E-9D08-18F466FF4B6E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{90FE6ABB-9207-4387-89AF-DC8A1493D56D} = {4C26FA5D-0E8C-4217-944C-3014A4D58E63}
+		{4397DA05-265D-485E-84AB-A8E1DDC086F3} = {4C26FA5D-0E8C-4217-944C-3014A4D58E63}
+		{3A7B2FF0-AAA5-489E-9D08-18F466FF4B6E} = {4C26FA5D-0E8C-4217-944C-3014A4D58E63}
+	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {951783D9-A9C1-4E80-B49B-C46211CFA4F1}
+		SolutionGuid = {F449A41B-1847-406A-84A4-8F7225CC6D14}
 	EndGlobalSection
 EndGlobal
