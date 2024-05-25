@@ -3,7 +3,7 @@ using ManagedCuda.BasicTypes;
 
 namespace libLlama2;
 
-public class Transformer
+public class Transformer : ITransformer
 {
     private readonly Config config;
 
@@ -107,6 +107,42 @@ public class Transformer
             var piece = tokenizer.Decode(prev, token);
             yield return piece;
             prev = token;
+        }
+    }
+
+    public IEnumerable<string> Chat(string system_prompt, IEnumerable<string> userInput)
+    {
+        var pos = 0;
+        var prev = 0;
+        foreach (var input in userInput)
+        {
+            var prompt = pos == 0 ? $"[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n\n{input} [/INST]"
+                                  : $"[INST] {input} [/INST]";
+
+            var promptTokens = tokenizer.Encode(prompt, true, false);
+
+            runstate.tokens.CopyToDevice(promptTokens, pos);
+
+            for (var userPos = pos + promptTokens.Length; pos < config.seqLength; ++pos)
+            {
+                var nextPos = pos + 1;
+                Forward(pos, nextPos);
+
+                var generateToken = nextPos >= userPos;
+
+                var token = sampler.Sample(nextPos, generateToken);
+
+                if (generateToken)
+                {
+                    if (token < 3) break;
+
+                    var piece = tokenizer.Decode(prev, token);
+                    yield return piece;
+                }
+                prev = token;
+            }
+            yield return "\n";
+            ++pos;
         }
     }
 

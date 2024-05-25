@@ -19,4 +19,7 @@ public static class Extensions
 
     public static CUdeviceptr OffsetPointer<T>(this CudaDeviceVariable<T> value, SizeT offset) where T : struct =>
         value.DevicePointer + (offset * value.TypeSize);
+
+    public static void CopyToDevice<T>(this CudaDeviceVariable<T> value, T[] source, SizeT position) where T : struct =>
+        value.CopyToDevice(source, 0, position * value.TypeSize, source.Length * value.TypeSize);
 }
