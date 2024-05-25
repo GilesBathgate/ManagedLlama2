@@ -15,7 +15,7 @@ public class ConverterTests
         return hash.Hash!;
     }
 
-    [Fact]
+    [Fact(Skip = "Slow, requires network")]
     public void ModelConverter_Test()
     {
         var expectedHash = "d398de0146c7c0e7d7087883421dd87b60f45288ce029cebb60208b0c0a65c91";
@@ -29,7 +29,7 @@ public class ConverterTests
         Assert.Equal(expectedHash, actualHash);
     }
 
-    [Fact]
+    [Fact(Skip = "Slow, requires network")]
     public void TokenizerConverter_Test()
     {
         var converter = new TokenizerConverter(download: true);
