@@ -61,7 +61,7 @@ public class Transformer
 
         tokenizer = new Tokenizer("tokenizer.bin", config.vocab_size);
 
-        runstate = InitRunState();
+        runstate = new RunState(config, kvDim);
 
         sampler = new Sampler(cudaContext, config, runstate);
 
@@ -146,22 +146,6 @@ public class Transformer
             classifierWeights = ReadWeight(accessor, ref offset, config.vocab_size * config.dim),
             rmsFinalWeight = ReadWeight(accessor, ref offset, config.dim),
             layers = ReadLayers(accessor, ref offset)
-        };
-
-    private RunState InitRunState() =>
-        new()
-        {
-            x = new CudaDeviceVariable<Half>(config.dim),
-            xb = new CudaDeviceVariable<Half>(config.dim),
-            hb = new CudaDeviceVariable<Half>(config.hidden_dim),
-            hb2 = new CudaDeviceVariable<Half>(config.hidden_dim),
-            q = new CudaDeviceVariable<Half>(config.dim),
-            att = new CudaDeviceVariable<Half>(config.n_heads * config.dim),
-            logits = new CudaDeviceVariable<Half>(config.vocab_size),
-            keyCache = new CudaDeviceVariable<Half>(config.n_layers * config.seq_len * kvDim),
-            valueCache = new CudaDeviceVariable<Half>(config.n_layers * config.seq_len * kvDim),
-            logitsArray = new CudaDeviceVariable<float>(config.seq_len * config.vocab_size),
-            tokens = new CudaDeviceVariable<int>(config.seq_len)
         };
 
     private CudaKernel InitEmbeddingKernel()
@@ -393,15 +377,15 @@ public class Transformer
 
             RoPERotation(runstate.q, runstate.keyCache, config.n_heads, config.n_kv_heads, headSize, position, layerOffset, config.rope_theta);
 
-            MultiHeadAttention(runstate.xb, runstate.q, runstate.keyCache, runstate.valueCache, runstate.att, headSize, config.dim, seq_len_bin, layerOffset, scale);
+            MultiHeadAttention(runstate.xb, runstate.q, runstate.keyCache, runstate.valueCache, runstate.attention, headSize, config.dim, seq_len_bin, layerOffset, scale);
 
             MatVecResidual(runstate.x, runstate.xb, layer.outputWeight, config.dim, config.dim);
 
             RMSNorm(runstate.xb, runstate.x, layer.rmsFeedForwardWeight, config.dim);
 
-            MatVecSwiGLU(runstate.hb, runstate.xb, layer.gateWeight, layer.upWeight, config.dim, config.hidden_dim);
+            MatVecSwiGLU(runstate.h, runstate.xb, layer.gateWeight, layer.upWeight, config.dim, config.hidden_dim);
 
-            MatVecResidual(runstate.x, runstate.hb, layer.downWeight, config.hidden_dim, config.dim);
+            MatVecResidual(runstate.x, runstate.h, layer.downWeight, config.hidden_dim, config.dim);
 
         }
 
