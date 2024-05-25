@@ -26,9 +26,7 @@ public class RMSNormTests : IDisposable
         var v2 = (CudaDeviceVariable<Half>)vector2;
         var size = v1.Size;
         var result = new CudaDeviceVariable<Half>(size);
-        var elementsPerThread = DivUp(size, 1024);
-        kernel.Run(result.DevicePointer, v1.DevicePointer, v2.DevicePointer, size, elementsPerThread);
-
+        kernel.Run(result.DevicePointer, v1.DevicePointer, v2.DevicePointer, size, 1e-5f);
         return (Half[])result;
     }
 
