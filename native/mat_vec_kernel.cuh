@@ -5,18 +5,8 @@
 
 extern "C" __global__ void mat_vec_kernel(half* output, const half* vector, const half* matrix, const int rows, const int cols);
 
-// Simpler version of the above - handles non multiple of 8 dimensions too (used only by MHA block)
-extern "C" __global__ void mat_vec_kernel_simple(half* op, half* ip, half* wt, int n, int numSerialElements,
-    int ip_stride, int w_stride, int w_row_stride, float alpha, int* pPos, int kv_mul);
-
-// hardcoded for group-count = 128
-__forceinline__ __device__ float get_mat_vec_int4(int index, const half* __restrict__ input,
-    const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ scales,
-    int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height);
-
-__device__ void mat_vec_int4(half* __restrict__ output, const half* __restrict__ input,
-    const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ scales,
-    int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height, bool accum, int loff, int* pPos);
+extern "C" __global__ void mat_vec_strided_kernel(half* output, const half* vector, const half* matrix, const int rows, const int cols,
+    const int v_stride, const int m_col_stride, const int m_row_stride, const int o_stride, const float alpha);
 
 __global__ void mat_vec_kernel_int4(half* __restrict__ output, const half* __restrict__ input,
     const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ scales,

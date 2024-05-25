@@ -34,33 +34,36 @@ __global__ void mat_vec_kernel(half* output, const half* vector, const half* mat
     return mat_vec<half>(output, vector, matrix, rows, cols);
 }
 
-// Simpler version of the above - handles non multiple of 8 dimensions too (used only by MHA block)
-__global__ void mat_vec_kernel_simple(half* op, half* ip, half* wt, int n, int numSerialElements,
-    int ip_stride, int w_stride, int w_row_stride, float alpha, int* pPos, int kv_mul) {
+template <typename T>
+inline __device__ void mat_vec_strided(T* output, const T* vector, const T* matrix, const int rows, const int cols,
+    const int v_stride, const int m_col_stride, const int m_row_stride, const int o_stride, const float alpha)
+{
+    const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
 
-    int op_stride = *pPos + 1;
-    int index = blockIdx.x * blockDim.y + threadIdx.y;
-    if (index >= op_stride)
-        return;
+    if (col_index >= cols) return;
 
-    const half* __restrict__ input = ip + blockIdx.y * ip_stride;
-    const half* __restrict__ weight = wt + (blockIdx.y / kv_mul) * w_stride;
-    half* output = op + blockIdx.y * op_stride;
+    const int index = col_index * m_row_stride + blockIdx.y * m_col_stride;
 
-    float sum = 0;
-    for (int i = 0; i < numSerialElements; i++) {
-        int j = i * 32 + threadIdx.x;
-        if (j < n)
-            sum += ((float)weight[index * w_row_stride + j]) * ((float)input[j]);
+    float sum = 0.0f;
+    for (int row_index = threadIdx.x; row_index < rows; row_index += blockDim.x) {
+        const int mat_index = index + row_index;
+        const int vec_index = row_index + blockIdx.y * v_stride;
+        sum += (float)matrix[mat_index] * (float)vector[vec_index];
     }
 
-    using WarpReduce = cub::WarpReduce<float>;
-    __shared__ typename WarpReduce::TempStorage temp;
-    sum = WarpReduce(temp).Sum(sum);
-    sum *= alpha;
+    __shared__ WarpStorage storage;
+    sum = WarpReduce(storage).Sum(sum);
 
-    if (threadIdx.x == 0)
-        output[index] = (half)sum;
+    if (threadIdx.x == 0) {
+        sum *= alpha;
+        output[col_index + blockIdx.y * o_stride] = (T)sum;
+    }
+}
+
+__global__ void mat_vec_strided_kernel(half* output, const half* vector, const half* matrix, const int rows, const int cols,
+    const int v_stride, const int m_col_stride, const int m_row_stride, const int o_stride, const float alpha)
+{
+    return mat_vec_strided<half>(output, vector, matrix, rows, cols, v_stride, m_col_stride, m_row_stride, o_stride, alpha);
 }
 
 // hardcoded for group-count = 128

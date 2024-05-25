@@ -13,7 +13,7 @@ public class MatVecStridedTests : IDisposable
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
-        kernel = cudaContext.LoadKernel("mat_vec_kernel.ptx", "mat_vec_kernel_simple");
+        kernel = cudaContext.LoadKernel("mat_vec_kernel.ptx", "mat_vec_strided_kernel");
     }
 
     public void Dispose() =>
@@ -24,23 +24,19 @@ public class MatVecStridedTests : IDisposable
         return (a + (b - 1)) / b;
     }
 
-    private Half[] MatVecStrided(Half[] q, Half[] k, int dim, int n_heads, int n_kv_heads, int seq_len)
+    private Half[] MatVecStrided(Half[] q, Half[] k, int dim, int n_heads, int seq_len)
     {
-        var pos = seq_len - 1;
         var head_size = dim / n_heads;
         var scale = 1.0f / MathF.Sqrt(head_size);
-        var kv_mul = n_heads / n_kv_heads;
 
         var ip = (CudaDeviceVariable<Half>)q;
         var wt = (CudaDeviceVariable<Half>)k;
         var att = new CudaDeviceVariable<Half>(n_heads * seq_len);
 
-        int serialElements = ceil_div(head_size, 32);
         kernel.BlockDimensions = new dim3(32, 32);
         kernel.GridDimensions = new dim3(ceil_div(seq_len, 32), n_heads);
 
-        var pPos = (CudaDeviceVariable<int>)pos;
-        kernel.Run(att.DevicePointer, ip.DevicePointer, wt.DevicePointer, head_size, serialElements, head_size, head_size, dim / kv_mul, scale, pPos.DevicePointer, kv_mul);
+        kernel.Run(att.DevicePointer, ip.DevicePointer, wt.DevicePointer, head_size, seq_len, head_size, head_size, dim, seq_len, scale);
         return (Half[])att;
     }
 
@@ -80,18 +76,17 @@ public class MatVecStridedTests : IDisposable
         var generator = new Generator();
         const int dim = 4096;
         const int n_heads = 32;
-        const int n_kv_heads = 32;
         const int seq_len = 16;
-        yield return new object[] { generator.NextArray(dim), generator.NextArray(dim * n_heads), dim, n_heads, n_kv_heads, seq_len };
+        yield return new object[] { generator.NextArray(dim), generator.NextArray(dim * n_heads), dim, n_heads, seq_len };
     }
 
     [Theory]
     [MemberData(nameof(RandomData))]
-    public void Test_MatVecStrided(Half[] q, Half[] k, int dim, int n_heads, int n_kv_heads, int seq_len)
+    public void Test_MatVecStrided(Half[] q, Half[] k, int dim, int n_heads, int seq_len)
     {
-        var expected = Expected(q, k, dim, n_heads, n_kv_heads, seq_len);
+        var expected = Expected(q, k, dim, n_heads, n_heads, seq_len);
 
-        var actual = MatVecStrided(q, k, dim, n_heads, n_kv_heads, seq_len);
+        var actual = MatVecStrided(q, k, dim, n_heads, seq_len);
 
         Assert.Equal(expected, actual);
     }
