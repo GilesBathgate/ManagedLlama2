@@ -14,7 +14,7 @@ public class TransformerTests
         var tokens = transformer.Generate("You are a helpful assistant. ", 19);
 
         var builder = new StringBuilder();
-        foreach(var token in tokens)
+        foreach (var token in tokens)
             builder.Append(token);
 
         var actual = builder.ToString();
@@ -22,14 +22,16 @@ public class TransformerTests
         Assert.Equal(expected, actual);
     }
 
-    [Fact(Skip = "Requires tokenizer.bin")]
-    public void Test_Tokenizer()
+    [Theory(Skip = "Requires tokenizer.bin")]
+    [InlineData("You are a helpful assistant", new[] { 1, 887, 526, 263, 8444, 20255, 2 })]
+    [InlineData("<<SYS>>", new[] { 1, 3532, 14816, 29903, 6778, 2 })]
+    [InlineData("[/INST]", new[] { 1, 518, 29914, 25580, 29962, 2 })]
+    [InlineData("\n", new[] { 1, 29871, 13, 2 })]
+    public void Test_Tokenizer(string value, int[] expected)
     {
         var tokenizer = new Tokenizer("tokenizer.bin", 32000);
 
-        var actual = tokenizer.Encode("You are a helpful assistant", true, true);
-
-        var expected = new[] { 1, 887, 526, 263, 8444, 20255, 2 };
+        var actual = tokenizer.Encode(value, true, true);
 
         Assert.Equal(expected, actual);
 

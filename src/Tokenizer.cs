@@ -1,8 +1,9 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace libLlama2;
 
-public class Tokenizer : ITokenizer
+public partial class Tokenizer : ITokenizer
 {
     private const int BOS = 1; // Begining Of Sequence
 
@@ -13,7 +14,7 @@ public class Tokenizer : ITokenizer
         public string str;
         public int id;
         public readonly int CompareTo(TokenIndex other) =>
-            string.Compare(str, other.str);
+            string.CompareOrdinal(str, other.str);
     }
 
     private readonly string[] vocab;
@@ -50,11 +51,23 @@ public class Tokenizer : ITokenizer
         Array.Sort(sortedVocab);
     }
 
+    [GeneratedRegex("^<0x([0-9A-F]{2})>$")]
+    private static partial Regex EncodedByteRegex();
+
     public string Decode(int prev, int token)
     {
         var piece = vocab[token];
-        // following BOS token, sentencepiece decoder strips any leading whitespace (see PR #89)
-        return (prev == BOS && piece[0] == ' ') ?  piece.TrimStart() : piece;
+        // following BOS (1) token, sentencepiece decoder strips any leading whitespace (see PR #89)
+        piece = (prev == BOS && piece[0] == ' ') ? piece.TrimStart() : piece;
+
+        var match = EncodedByteRegex().Match(piece);
+        if (!match.Success)
+            return piece;
+
+        var value = match.Groups[1].Value;
+        var byteValue = Convert.ToByte(value, 16);
+        var charValue = Convert.ToChar(byteValue);
+        return charValue.ToString();
     }
 
     private int StrLookup(string str)
@@ -81,10 +94,13 @@ public class Tokenizer : ITokenizer
         foreach (char c in prompt)
         {
             var id = StrLookup(c.ToString());
-            if (id == -1)
-                throw new Exception("Encoding error");
-
-            tokens.Add(id);
+            if (id != -1) {
+                tokens.Add(id);
+            } else {
+                var bytes = Encoding.UTF8.GetBytes(c.ToString());
+                foreach(var b in bytes)
+                    tokens.Add(b + 3);
+            }
         }
 
         var strBuffer = new StringBuilder(maxTokenLength * 2 + 1); // *2 for concat, +1 for null terminator

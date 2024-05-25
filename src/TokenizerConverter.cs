@@ -1,10 +1,9 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using ProtoBuf;
 
 namespace libLlama2;
 
-public partial class TokenizerConverter
+public class TokenizerConverter
 {
     private readonly string tokenizerPath;
 
@@ -36,8 +35,7 @@ public partial class TokenizerConverter
         var parts = new List<(byte[] token, float score)>();
         foreach (var part in model.Pieces)
         {
-            var piece = ConvertSpecial(part.Piece);
-            piece = piece.Replace("▁", " ");
+            var piece = ConvertPiece(part.Piece);
 
             var token = Encoding.UTF8.GetBytes(piece);
             parts.Add((token, part.Score));
@@ -58,25 +56,14 @@ public partial class TokenizerConverter
 
     }
 
-    [GeneratedRegex("^<0x?([0-9a-fA-F]{2})>$")]
-    private static partial Regex EncodedByteRegex();
-
-    public static string ConvertSpecial(string piece)
+    public static string ConvertPiece(string piece)
     {
         if (piece == "<s>")
             return "\n<s>\n";
         else if (piece == "</s>")
             return "\n</s>\n";
 
-        var match = EncodedByteRegex().Match(piece);
-        if (!match.Success)
-            return piece;
-
-        var value = match.Groups[1].Value;
-        var byteValue = System.Convert.ToByte(value, 16);
-        var charValue = System.Convert.ToChar(byteValue);
-
-        return charValue.ToString();
+        return piece.Replace("▁", " ");
     }
 
     [ProtoContract]
