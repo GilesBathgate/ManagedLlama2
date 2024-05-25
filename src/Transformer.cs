@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-using System.Text;
-using ManagedCuda;
+﻿using ManagedCuda;
 using ManagedCuda.BasicTypes;
 
 namespace libLlama2;
@@ -48,16 +46,16 @@ public class Transformer
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
 
-        config = LoadConfig(fileStream);
+        config = Config.LoadConfig(fileStream);
 
-        kvDim = config.dim * config.n_kv_heads / config.n_heads;
+        kvDim = config.dim * config.numKVHeads / config.numHeads;
 
         if (kvDim != config.dim)
             throw new NotImplementedException("Differing kvDim dimention not currently supported.");
 
         weights = new TransformerWeights(config, fileStream);
 
-        tokenizer = new Tokenizer("tokenizer.bin", config.vocab_size);
+        tokenizer = new Tokenizer("tokenizer.bin", config.vocabSize);
 
         runstate = new RunState(config, kvDim);
 
@@ -115,18 +113,6 @@ public class Transformer
         }
     }
 
-    private static Config LoadConfig(FileStream fileStream)
-    {
-        using var reader = new BinaryReader(fileStream, Encoding.UTF8, true);
-        var bytes = reader.ReadBytes(Config.Size);
-        var config = MemoryMarshal.Cast<byte, Config>(bytes)[0];
-
-        if (config.rope_theta != 10000.0f)
-            throw new FileLoadException("Invalid model config");
-
-        return config;
-    }
-
     private void MultiHeadAttention(CudaDeviceVariable<Half> output, CudaDeviceVariable<Half> query, CudaDeviceVariable<Half> key, CudaDeviceVariable<Half> value,
                                     CudaDeviceVariable<Half> attention, int headSize, int dim, int seqLength, SizeT layerOffset, float scale)
     {
@@ -137,7 +123,7 @@ public class Transformer
 
     private void Forward(int position, int seq_len_bin)
     {
-        var headSize =  config.dim / config.n_heads;
+        var headSize = config.dim / config.numHeads;
         var scale = 1.0f / MathF.Sqrt(headSize);
 
         embedding.Forward(runstate.x, weights.tokenEmbeddingTable, config.dim, runstate.tokens, position);
@@ -146,11 +132,11 @@ public class Transformer
         {
             rmsNorm.Forward(runstate.xb, runstate.x, layer.rmsAttentionWeight, config.dim);
 
-            SizeT layerOffset = i * config.seq_len * kvDim;
+            SizeT layerOffset = i * config.seqLength * kvDim;
 
             qkvMatVec.Forward(runstate.q, runstate.keyCache, runstate.valueCache, runstate.xb, layer.queryWeight, layer.keyWeight, layer.valueWeight, config.dim, config.dim, layerOffset, position);
 
-            rope.Forward(runstate.q, runstate.keyCache, config.n_kv_heads, headSize, position, layerOffset, config.rope_theta);
+            rope.Forward(runstate.q, runstate.keyCache, config.numKVHeads, headSize, position, layerOffset, config.ropeTheta);
 
             MultiHeadAttention(runstate.xb, runstate.q, runstate.keyCache, runstate.valueCache, runstate.attention, headSize, config.dim, seq_len_bin, layerOffset, scale);
 
@@ -158,14 +144,14 @@ public class Transformer
 
             rmsNorm.Forward(runstate.xb, runstate.x, layer.rmsFeedForwardWeight, config.dim);
 
-            matVecSwiGLU.Forward(runstate.h, runstate.xb, layer.gateWeight, layer.upWeight, config.dim, config.hidden_dim);
+            matVecSwiGLU.Forward(runstate.h, runstate.xb, layer.gateWeight, layer.upWeight, config.dim, config.hiddenDim);
 
-            matVecResidual.Forward(runstate.x, runstate.h, layer.downWeight, config.hidden_dim, config.dim);
+            matVecResidual.Forward(runstate.x, runstate.h, layer.downWeight, config.hiddenDim, config.dim);
 
         }
 
         rmsNorm.Forward(runstate.x, runstate.x, weights.rmsFinalWeight, config.dim);
 
-        matVec.Forward(runstate.logits, runstate.x, weights.classifierWeights, config.dim, config.vocab_size);
+        matVec.Forward(runstate.logits, runstate.x, weights.classifierWeights, config.dim, config.vocabSize);
     }
 }

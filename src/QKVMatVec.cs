@@ -11,7 +11,7 @@ public class QKVMatVec : Module
     public QKVMatVec(CudaContext cudaContext, Config config) :
         base(cudaContext, "mat_vec_kernel.ptx", "qkv_mat_vec_kernel")
     {
-        kvDim = config.dim * config.n_kv_heads / config.n_heads;
+        kvDim = config.dim * config.numKVHeads / config.numHeads;
         kernel.GridDimensions = new dim3(CeilDiv(config.dim, 4), 3);
         kernel.BlockDimensions = new dim3(32, 4);
     }

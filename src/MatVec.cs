@@ -8,7 +8,7 @@ public class MatVec : Module
     public MatVec(CudaContext cudaContext, Config config) :
         base(cudaContext, "mat_vec_kernel.ptx", "mat_vec_kernel")
     {
-        kernel.GridDimensions = new dim3(CeilDiv(config.vocab_size, 4), 1);
+        kernel.GridDimensions = new dim3(CeilDiv(config.vocabSize, 4), 1);
         kernel.BlockDimensions = new dim3(32, 4);
     }
 

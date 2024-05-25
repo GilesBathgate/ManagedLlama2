@@ -20,7 +20,7 @@ public class TransformerWeights
     public TransformerWeights(Config config, FileStream fileStream)
     {
         this.config = config;
-        kvDim = config.dim * config.n_kv_heads / config.n_heads;
+        kvDim = config.dim * config.numKVHeads / config.numHeads;
 
         var fileSize = fileStream.Length;
         using var memoryMappedFile = MemoryMappedFile.CreateFromFile(
@@ -31,8 +31,8 @@ public class TransformerWeights
             Config.Size, remaining, MemoryMappedFileAccess.Read);
 
         long offset = 0;
-        tokenEmbeddingTable = ReadWeight(accessor, ref offset, config.vocab_size * config.dim);
-        classifierWeights = ReadWeight(accessor, ref offset, config.vocab_size * config.dim);
+        tokenEmbeddingTable = ReadWeight(accessor, ref offset, config.vocabSize * config.dim);
+        classifierWeights = ReadWeight(accessor, ref offset, config.vocabSize * config.dim);
         rmsFinalWeight = ReadWeight(accessor, ref offset, config.dim);
         layers = ReadLayers(accessor, ref offset);
 
@@ -86,9 +86,9 @@ public class TransformerWeights
             valueWeight = ReadQWeight(accessor, ref offset, config.dim, kvDim),
             outputWeight = ReadQWeight(accessor, ref offset, config.dim, config.dim),
 
-            upWeight = ReadQWeight(accessor, ref offset, config.dim, config.hidden_dim),
-            gateWeight = ReadQWeight(accessor, ref offset, config.dim, config.hidden_dim),
-            downWeight = ReadQWeight(accessor, ref offset, config.hidden_dim, config.dim),
+            upWeight = ReadQWeight(accessor, ref offset, config.dim, config.hiddenDim),
+            gateWeight = ReadQWeight(accessor, ref offset, config.dim, config.hiddenDim),
+            downWeight = ReadQWeight(accessor, ref offset, config.hiddenDim, config.dim),
 
             rmsAttentionWeight = ReadWeight(accessor, ref offset, config.dim),
             rmsFeedForwardWeight = ReadWeight(accessor, ref offset, config.dim)
@@ -96,8 +96,8 @@ public class TransformerWeights
 
     private ICollection<PerLayerWeight> ReadLayers(MemoryMappedViewAccessor accessor, ref long offset)
     {
-        var perLayerWeight = new List<PerLayerWeight>(config.n_layers);
-        for (var i = 0; i < config.n_layers; ++i)
+        var perLayerWeight = new List<PerLayerWeight>(config.numLayers);
+        for (var i = 0; i < config.numLayers; ++i)
             perLayerWeight.Add(ReadLayer(accessor, ref offset));
         return perLayerWeight;
     }

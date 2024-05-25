@@ -9,8 +9,8 @@ public class VecMat : Module
     public VecMat(CudaContext cudaContext, Config config) :
         base(cudaContext, "vec_mat_kernel.ptx", "vec_mat_kernel")
     {
-        var headSize = config.dim / config.n_heads;
-        kernel.GridDimensions = new dim3(CeilDiv(headSize, 32), config.n_heads);
+        var headSize = config.dim / config.numHeads;
+        kernel.GridDimensions = new dim3(CeilDiv(headSize, 32), config.numHeads);
         kernel.BlockDimensions = new dim3(32, 32);
     }
 

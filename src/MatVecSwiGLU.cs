@@ -8,7 +8,7 @@ public class MatVecSwiGLU : Module
     public MatVecSwiGLU(CudaContext cudaContext, Config config) :
         base(cudaContext, "mat_vec_kernel.ptx", "mat_vec_swiglu_kernel")
     {
-        kernel.GridDimensions = new dim3(CeilDiv(config.hidden_dim, 4), 1);
+        kernel.GridDimensions = new dim3(CeilDiv(config.hiddenDim, 4), 1);
         kernel.BlockDimensions = new dim3(32, 4);
     }
 

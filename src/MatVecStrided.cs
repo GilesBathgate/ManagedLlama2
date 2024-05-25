@@ -9,7 +9,7 @@ public class MatVecStrided : Module
     public MatVecStrided(CudaContext cudaContext, Config config) :
         base(cudaContext, "mat_vec_kernel.ptx", "mat_vec_strided_kernel")
     {
-        kernel.GridDimensions = new dim3(CeilDiv(config.seq_len, 32), config.n_heads);
+        kernel.GridDimensions = new dim3(CeilDiv(config.seqLength, 32), config.numHeads);
         kernel.BlockDimensions = new dim3(32, 32);
     }
 

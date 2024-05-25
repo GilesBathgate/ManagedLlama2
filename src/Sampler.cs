@@ -23,7 +23,7 @@ public class Sampler : ISampler
         var nextPos = pos + 1;
         if (temperature == 0.0f || !generateToken)
         {
-            argmax.Forward(runstate.logits, config.vocab_size, runstate.tokens, nextPos, generateToken);
+            argmax.Forward(runstate.logits, config.vocabSize, runstate.tokens, nextPos, generateToken);
         }
 
         return runstate.tokens[nextPos];

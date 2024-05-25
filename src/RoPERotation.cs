@@ -10,9 +10,9 @@ public class RoPERotation : Module
     public RoPERotation(CudaContext cudaContext, Config config) :
         base(cudaContext, "rope_kernel.ptx", "rope_kernel")
     {
-        kvDim = config.dim * config.n_kv_heads / config.n_heads;
-        int headSize = config.dim / config.n_heads;
-        kernel.GridDimensions = config.n_heads;
+        kvDim = config.dim * config.numKVHeads / config.numHeads;
+        int headSize = config.dim / config.numHeads;
+        kernel.GridDimensions = config.numHeads;
         kernel.BlockDimensions = headSize / 2;
     }
 

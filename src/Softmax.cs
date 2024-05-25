@@ -7,7 +7,7 @@ public class Softmax : Module
     public Softmax(CudaContext cudaContext, Config config) :
         base(cudaContext, "softmax_kernel.ptx", "softmax_kernel")
     {
-        kernel.GridDimensions = config.n_heads;
+        kernel.GridDimensions = config.numHeads;
         kernel.BlockDimensions = 1024;
     }
 
