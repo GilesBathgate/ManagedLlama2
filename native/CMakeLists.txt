@@ -21,6 +21,7 @@ add_library(Llama2 OBJECT
     sample_top_p_kernel.cu
     softmax_kernel.cu
     softmax_logits_kernel.cu
+    sort_kernel.cu
     vec_mat_kernel.cu
     vecadd_kernel.cu)
 # Set CUDA architectures the library supports
