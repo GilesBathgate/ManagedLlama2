@@ -1,15 +1,14 @@
 #include "softmax_logits_kernel.cuh"
 
-// This is used for Top-P sampling. We do the following:
-// 1. Divide the logits by temperature
-// 2. Compute softmax
-// 3. Write the indices in an array
-__global__ void softmax_logits_kernel(half* __restrict__ logits, int size, float temperature, int *indices) {
-    int tid = threadIdx.x;
-    int step = blockDim.x;
+#include <cub/block/block_reduce.cuh>
 
+using BlockReduce = cub::BlockReduce<float, 1024>;
+using BlockStorage = BlockReduce::TempStorage;
 
-    for (int t = tid; t < size; t += step)
+template <typename T>
+inline __device__ void softmax_logits(T* logits, const int size, const float temperature, int *indices)
+{
+    for (int t = threadIdx.x; t < size; t += blockDim.x)
     {
         // first just write the indices array
         indices[t] = t;
@@ -22,17 +21,15 @@ __global__ void softmax_logits_kernel(half* __restrict__ logits, int size, float
     __syncthreads();
 
     // Compute the softmax
-    using BlockReduce = cub::BlockReduce<float, 1024>;
-    __shared__ typename BlockReduce::TempStorage temp;
     __shared__ float shared_val;
-
+    __shared__ BlockStorage storage;
     // find max value (for numerical stability)
-    float max_val = tid < size ? ((float)logits[tid]) : -FLT_MAX;
-    for (int i = tid + step; i < size; i += step)
+    float max_val = threadIdx.x < size ? ((float)logits[threadIdx.x]) : -FLT_MAX;
+    for (int i = threadIdx.x + blockDim.x; i < size; i += blockDim.x)
         if ((float)logits[i] > max_val)
             max_val = logits[i];
 
-    max_val = BlockReduce(temp).Reduce(max_val, cub::Max());
+    max_val = BlockReduce(storage).Reduce(max_val, cub::Max());
     if (threadIdx.x == 0)
         shared_val = max_val;
     __syncthreads();
@@ -40,20 +37,24 @@ __global__ void softmax_logits_kernel(half* __restrict__ logits, int size, float
 
     // exp and sum
     float sum = 0.0f;
-    for (int i = tid; i < size; i += step) {
+    for (int i = threadIdx.x; i < size; i += blockDim.x) {
         float v = expf(float(logits[i]) - max_val);
         logits[i] = (half)v;
         sum += v;
     }
 
-    sum = BlockReduce(temp).Sum(sum);
+    sum = BlockReduce(storage).Sum(sum);
     if (threadIdx.x == 0)
         shared_val = sum;
     __syncthreads();
     sum = shared_val;
 
     // normalize and write the result
-    for (int t = tid; t < size; t += step)
+    for (int t = threadIdx.x; t < size; t += blockDim.x)
         logits[t] = (half)(float(logits[t]) / sum);
 }
 
+__global__ void softmax_logits_kernel(half* logits, const int size, const float temperature, int *indices)
+{
+    return softmax_logits<half>(logits, size, temperature, indices);
+}

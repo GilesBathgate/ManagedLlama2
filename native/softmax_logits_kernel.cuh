@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cuda_runtime_api.h>
-#include <cub/cub.cuh>
+#include <cuda_fp16.h>
 
-// This is used for Top-P sampling.
-extern "C" __global__ void softmax_logits_kernel(half* __restrict__ logits, int size, float temperature, int *indices);
+extern "C" __global__ void softmax_logits_kernel(half* logits, const int size, const float temperature, int *indices);
