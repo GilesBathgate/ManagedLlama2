@@ -50,6 +50,9 @@ public class Transformer
 
         kvDim = config.dim * config.n_kv_heads / config.n_heads;
 
+        if (kvDim != config.dim)
+            throw new NotImplementedException("Differing kvDim dimention not currently supported.");
+
         weights = CheckpointInitWeights(fileStream);
 
         runstate = InitRunState();
@@ -344,46 +347,37 @@ public class Transformer
         ropeKernel.Run(query.DevicePointer, key.DevicePointer + offset, headSize, numHeads, numKVHeads, pos, theta);
     }
 
-    private void RunNetwork(int pos, CudaDeviceVariable<int> tokens, int seq_len_bin)
+    private void RunNetwork(int position, CudaDeviceVariable<int> tokens, int seq_len_bin)
     {
-        var p = config;
-        var dim = config.dim;
-        var s = runstate;
-        var head_size =  dim / p.n_heads;
-        var scale = 1.0f / MathF.Sqrt(head_size);
+        var headSize =  config.dim / config.n_heads;
+        var scale = 1.0f / MathF.Sqrt(headSize);
 
-        Embedding(s.x, weights.tokenEmbeddingTable, dim, tokens, pos);
+        Embedding(runstate.x, weights.tokenEmbeddingTable, config.dim, tokens, position);
 
-        foreach (var (i, l) in weights.layers.Enumerate())
+        foreach (var (i, layer) in weights.layers.Enumerate())
         {
-            RMSNorm(s.xb, s.x, l.rmsAttentionWeight, dim);
+            RMSNorm(runstate.xb, runstate.x, layer.rmsAttentionWeight, config.dim);
 
-            SizeT loff = i * config.seq_len * kvDim;
+            SizeT layerOffset = i * config.seq_len * kvDim;
 
-            if (dim == kvDim) {
-                QKVMatVec(s.q, s.keyCache, s.valueCache, s.xb, l.queryWeight, l.keyWeight, l.valueWeight, dim, dim, loff, pos);
-            } else {
-                throw new NotImplementedException();
-            }
+            QKVMatVec(runstate.q, runstate.keyCache, runstate.valueCache, runstate.xb, layer.queryWeight, layer.keyWeight, layer.valueWeight, config.dim, config.dim, layerOffset, position);
 
-            RoPERotation(s.q, s.keyCache, p.n_heads, p.n_kv_heads, head_size, pos, loff, p.rope_theta);
+            RoPERotation(runstate.q, runstate.keyCache, config.n_heads, config.n_kv_heads, headSize, position, layerOffset, config.rope_theta);
 
-            MultiHeadAttention(s.xb, s.q, s.keyCache, s.valueCache, s.att, head_size, dim, seq_len_bin, loff, scale);
+            MultiHeadAttention(runstate.xb, runstate.q, runstate.keyCache, runstate.valueCache, runstate.att, headSize, config.dim, seq_len_bin, layerOffset, scale);
 
-            MatVecResidual(s.x, s.xb, l.outputWeight, dim, dim);
+            MatVecResidual(runstate.x, runstate.xb, layer.outputWeight, config.dim, config.dim);
 
-            RMSNorm(s.xb, s.x, l.rmsFeedForwardWeight, dim);
+            RMSNorm(runstate.xb, runstate.x, layer.rmsFeedForwardWeight, config.dim);
 
-            MatVecSwiGLU(s.hb, s.xb, l.gateWeight, l.upWeight, dim, p.hidden_dim);
+            MatVecSwiGLU(runstate.hb, runstate.xb, layer.gateWeight, layer.upWeight, config.dim, config.hidden_dim);
 
-            MatVecResidual(s.x, s.hb, l.downWeight, p.hidden_dim, dim);
+            MatVecResidual(runstate.x, runstate.hb, layer.downWeight, config.hidden_dim, config.dim);
 
         }
 
-        RMSNorm(s.x, s.x, weights.rmsFinalWeight, dim);
+        RMSNorm(runstate.x, runstate.x, weights.rmsFinalWeight, config.dim);
 
-        MatVec(s.logits, s.x, weights.classifierWeights, p.dim, p.vocab_size);
-
+        MatVec(runstate.logits, runstate.x, weights.classifierWeights, config.dim, config.vocab_size);
     }
-
 }
