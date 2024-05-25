@@ -15,14 +15,11 @@ public class Program
         var modelPath = args[0];
         var tokenizerPath = args[1];
 
-        var modelConverter = new ModelConverter(download: true);
+        using var modelConverter = new ModelConverter(ModelConverter.ModelType.Llama2_AWQ_13b, download: true);
         modelConverter.Convert(modelPath);
 
-        var tokenizerConverter = new TokenizerConverter(download: true);
+        using var tokenizerConverter = new TokenizerConverter(download: true);
         tokenizerConverter.Convert(tokenizerPath);
 
-        File.Delete("pytorch_model.pt");
-        File.Delete("config.json");
-        File.Delete("tokenizer.spm");
     }
 }

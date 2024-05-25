@@ -8,32 +8,65 @@ using Razorvine.Pickle;
 
 namespace libLlama2;
 
-public class ModelConverter
+public class ModelConverter : IDisposable
 {
-    private readonly string modelPath;
+    private readonly List<string> modelPaths;
 
     private readonly string configPath;
 
     private static readonly int[] orderMap = { 0, 2, 4, 6, 1, 3, 5, 7 };
 
-    public ModelConverter(bool download) : this("pytorch_model.pt", "config.json", download)
-    {}
+    public enum ModelType { Llama2_AWQ_7b, Llama2_AWQ_13b }
 
-    public ModelConverter(string modelPath, string configPath, bool download = false)
+    public ModelConverter(bool download) : this(ModelType.Llama2_AWQ_7b, download)
+    { }
+
+    public ModelConverter(ModelType modelType, bool download) : this("pytorch_model.pt", "config.json", modelType, download)
+    { }
+
+    public ModelConverter(string modelPath, string configPath, ModelType modelType, bool download = false)
     {
-        if (download) {
-            var downloader = new Model7bDownloader(modelPath, configPath);
+        Downloader downloader;
+        if (modelType == ModelType.Llama2_AWQ_13b)
+        {
+            modelPaths = GetTempPaths(modelPath);
+            downloader = new Model13bDownloader(modelPaths, configPath);
+        }
+        else
+        {
+            modelPaths = new List<string> { modelPath };
+            downloader = new Model7bDownloader(modelPath, configPath);
+        }
+
+        if (download)
+        {
             downloader.Download();
-        } else {
-            if(!File.Exists(modelPath))
+        }
+        else
+        {
+            if (!File.Exists(modelPath))
                 throw new ArgumentException("Download set to false and model path does not exist");
 
             if (!File.Exists(configPath))
                 throw new ArgumentException("Download set to false and config path does not exist");
         }
 
-        this.modelPath = modelPath;
         this.configPath = configPath;
+    }
+
+    public void Dispose()
+    {
+        foreach (var file in modelPaths)
+            File.Delete(file);
+        File.Delete(configPath);
+    }
+
+    private static List<string> GetTempPaths(string modelPath)
+    {
+        var paths = new List<string>();
+        for (var i = 0; i < 3; ++i)
+            paths.Add(Path.ChangeExtension(modelPath, $".00{i + 1}.pt"));
+        return paths;
     }
 
     private class JsonConfig
@@ -90,12 +123,19 @@ public class ModelConverter
     public void Convert(Stream outputStream, Format format = Format.OldAWQFormat)
     {
         Console.WriteLine($"Converting");
-        using var archive = new ZipArchive(File.OpenRead(modelPath), ZipArchiveMode.Read);
+        using var archives = new DisposableList<ZipArchive>();
 
         var config = JsonConfig.Convert(configPath);
         Config.SaveConfig(outputStream, config);
 
-        var dict = GetStateDict(archive);
+        var dict = new Dictionary<string, Tensor>();
+        foreach (var path in modelPaths)
+        {
+            var archive = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read);
+            UpdateStateDictionary(archive, dict);
+            archives.Add(archive);
+        }
+
         var embed = dict["model.embed_tokens.weight"];
         embed.CopyTo(outputStream);
 
@@ -129,12 +169,13 @@ public class ModelConverter
         Console.WriteLine("done");
     }
 
-    private static IDictionary<string, Tensor> GetStateDict(ZipArchive archive)
+    private static void UpdateStateDictionary(ZipArchive archive, IDictionary<string, Tensor> state)
     {
         var pickle = archive.Entries.First(e => e.Name.EndsWith("data.pkl"));
         using var unpickler = new TorchUnpickler(archive);
-        var table =(Hashtable)unpickler.load(pickle.Open());
-        return table.Cast<DictionaryEntry>().ToDictionary(x => (string)x.Key, v => (Tensor)v.Value!);
+        var table = (Hashtable)unpickler.load(pickle.Open());
+        foreach (DictionaryEntry entry in table)
+            state.Add((string)entry.Key, (Tensor)entry.Value!);
     }
 
     protected static int CeilDiv(int a, int b) =>
@@ -208,7 +249,7 @@ public class ModelConverter
     private static byte[] RepackQData(byte[] q_weight_in_bytes, int height, int width, int size)
     {
         var q_weight_in = MemoryMarshal.Cast<byte, uint>(q_weight_in_bytes);
-        var packed = new uint[(width * height) + 2];
+        var packed = new uint[(width * height) + 4];
         var q = new uint[8];
 
         // 1. convert to uint32 col-major array first (only 4 LSBs of each element are non-zero)

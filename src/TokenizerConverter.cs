@@ -3,7 +3,7 @@ using ProtoBuf;
 
 namespace libLlama2;
 
-public class TokenizerConverter
+public class TokenizerConverter : IDisposable
 {
     private readonly string tokenizerPath;
 
@@ -25,6 +25,11 @@ public class TokenizerConverter
         }
 
         this.tokenizerPath = tokenizerPath;
+    }
+
+    public void Dispose()
+    {
+        File.Delete(tokenizerPath);
     }
 
     public void Convert(string outputPath)
