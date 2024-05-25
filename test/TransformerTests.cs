@@ -14,9 +14,11 @@ public class TransformerTests
         var expectedLogits = expected.Select(ToHalf);
 
         var transformer = new Transformer("model-7b.bin");
-        var logits = transformer.Run(" You are a helpful assistant", 5);
+        var stream = transformer.Generate(" You are a helpful assistant", 50);
+        foreach(var s in stream)
+            Console.Write(s);
 
-        var actual = logits.Take(expected.Length);
+        var actual = transformer.testLogits!.Take(expected.Length);
 
         Assert.Equal(expectedLogits, actual);
     }

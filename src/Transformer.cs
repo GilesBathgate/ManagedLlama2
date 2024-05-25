@@ -88,13 +88,13 @@ public class Transformer
         fileStream.Close();
     }
 
-    public Half[] Run(string prompt, int steps)
+    public Half[]? testLogits;
+
+    public IEnumerable<string> Generate(string prompt, int steps)
     {
         var promptTokens = tokenizer.Encode(prompt, true);
 
         runstate.tokens.CopyToDevice(promptTokens);
-
-        Half[]? testLogits = null;
 
         var prev = promptTokens[0];
         for (int pos = 0; pos < steps; ++pos)
@@ -112,11 +112,9 @@ public class Transformer
             if (token == 1) break;
 
             var piece = tokenizer.Decode(prev, token);
-            Console.Write(piece);
+            yield return piece;
             prev = token;
         }
-
-        return testLogits!;
     }
 
     private static int CeilDiv(int a, int b) =>
