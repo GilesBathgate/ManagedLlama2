@@ -4,4 +4,4 @@
 #include <cub/cub.cuh>
 
 // find the index in the array that crosses top-p threshold
-__global__ void sample_top_p_kernel(half* sorted_logits_prefix_sum, int* indices, int n, float top_p_threshold, int* result, volatile int* pPos, int* pPosGpu);
+extern "C" __global__ void sample_top_p_kernel(half* sorted_logits_prefix_sum, int* indices, int n, float top_p_threshold, int* result, volatile int* pPos, int* pPosGpu);

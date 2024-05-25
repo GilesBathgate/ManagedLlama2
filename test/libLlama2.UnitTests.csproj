@@ -35,6 +35,7 @@
     <None Include="$(BuildDir)\mat_vec_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\rmsnorm_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\rope_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\sample_top_p_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\softmax_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\softmax_logits_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\vec_mat_kernel.ptx" CopyToOutputDirectory="Always" />
