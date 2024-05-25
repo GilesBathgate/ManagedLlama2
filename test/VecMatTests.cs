@@ -26,7 +26,6 @@ public class VecMatTests : IDisposable
 
     private Half[] VecMat(Half[] att, Half[] vector, int dim, int n_heads, int seq_len)
     {
-        var pos = seq_len - 1;
         var head_size = dim / n_heads;
 
         kernel.GridDimensions = new dim3(ceil_div(head_size, 32), n_heads);
@@ -37,8 +36,7 @@ public class VecMatTests : IDisposable
 
         var result = new CudaDeviceVariable<Half>(dim * head_size);
 
-        var pPos = (CudaDeviceVariable<int>)pos;
-        kernel.Run(result.DevicePointer, m.DevicePointer, v.DevicePointer, head_size, pPos.DevicePointer, head_size, head_size, dim, 1);
+        kernel.Run(result.DevicePointer, m.DevicePointer, v.DevicePointer, head_size, seq_len, head_size, head_size, dim);
 
         return (Half[])result;
     }
