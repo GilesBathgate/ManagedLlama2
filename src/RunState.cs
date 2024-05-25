@@ -20,8 +20,6 @@ public class RunState
 
     public readonly CudaDeviceVariable<Half> valueCache; // (layer, seq_len, kv_dim)
 
-    public readonly CudaDeviceVariable<float> logitsArray;  // array of output logits used to compute perplexity (seq_len, vocab_size)
-
     public readonly CudaDeviceVariable<int> tokens;
 
     public RunState(Config config, int kvDim)
@@ -34,7 +32,6 @@ public class RunState
         logits = new CudaDeviceVariable<Half>(config.vocabSize);
         keyCache = new CudaDeviceVariable<Half>(config.numLayers * config.seqLength * kvDim);
         valueCache = new CudaDeviceVariable<Half>(config.numLayers * config.seqLength * kvDim);
-        logitsArray = new CudaDeviceVariable<float>(config.seqLength * config.vocabSize);
         tokens = new CudaDeviceVariable<int>(config.seqLength);
     }
 }
