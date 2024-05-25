@@ -193,23 +193,33 @@ __global__ void qkv_mat_vec_kernel(half* q_output, half* k_output, half* v_outpu
                              rows, cols, zeros_size, scales_size, weights_size);
 }
 
-__global__ void ffn_matvec_silu_kernel(half* __restrict__ output, const half* __restrict__ input,
-    const uint32_t* __restrict__ g_weight, const uint32_t* __restrict__ g_zeros, const half* __restrict__ g_scales,
-    const uint32_t* __restrict__ u_weight, const uint32_t* __restrict__ u_zeros, const half* __restrict__ u_scales,
-    int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height) {
 
-    int index = blockIdx.x * blockDim.y + threadIdx.y;
-    if (index >= opElements)
-        return;
+template <typename T>
+inline __device__ void mat_vec_swiglu(T* output, const T* input,
+    const uint32_t* g_weight, const uint32_t* g_zeros, const half* g_scales,
+    const uint32_t* u_weight, const uint32_t* u_zeros, const half* u_scales,
+    const int rows, const int cols, int zeros_size, int scales_size, int weights_size)
+{
+    float g_val = sum_mat_vec_int4<T>(input, g_weight, g_zeros, g_scales, rows, cols, zeros_size, scales_size, weights_size);
+    float u_val = sum_mat_vec_int4<T>(input, u_weight, u_zeros, u_scales, rows, cols, zeros_size, scales_size, weights_size);
 
-    float g_val = sum_mat_vec_int4(input, g_weight, g_zeros, g_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
-    float u_val = sum_mat_vec_int4(input, u_weight, u_zeros, u_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
-
-    // apply silu and write the result
     if (threadIdx.x == 0) {
+        const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
+        if (col_index >= cols) return;
+
         float val = g_val;
         val *= 1.0f / (1.0f + expf(-val));
         val *= u_val;
-        output[index] = (half)val;
+        output[col_index] = (T)val;
     }
+}
+
+__global__ void mat_vec_swiglu_kernel(half* output, const half* input,
+    const uint32_t* g_weight, const uint32_t* g_zeros, const half* g_scales,
+    const uint32_t* u_weight, const uint32_t* u_zeros, const half* u_scales,
+    const int rows, const int cols, const int zeros_size, const int scales_size, const int weights_size)
+{
+    return mat_vec_swiglu<half>(output, input,
+                                       g_weight, g_zeros, g_scales, u_weight, u_zeros, u_scales,
+                                       rows, cols, zeros_size, scales_size, weights_size);
 }

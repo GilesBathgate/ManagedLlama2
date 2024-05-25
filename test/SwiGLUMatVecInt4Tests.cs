@@ -13,7 +13,7 @@ public class SwiGLUMatVecInt4Tests : IDisposable
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
-        kernel = cudaContext.LoadKernel("mat_vec_kernel.ptx", "ffn_matvec_silu_kernel");
+        kernel = cudaContext.LoadKernel("mat_vec_kernel.ptx", "mat_vec_swiglu_kernel");
     }
 
     public void Dispose() =>
