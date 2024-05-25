@@ -23,16 +23,16 @@ inline __device__ void rmsnorm(T* output, const T* input, const T* gamma, const 
     if (threadIdx.x == 0)
     {
         variance /= size;
-        rms = rsqrtf(variance + eps);
+        //rms = rsqrtf(variance + eps);
+        rms = 1.0f / sqrtf(variance + eps);
     }
     __syncthreads();
 
     for (int i = threadIdx.x; i < size; i += blockDim.x)
     {
         const int index = blockIdx.x * size + i;
-        const float value = (float)input[index];
-        const float weight = (float)gamma[index];
-        output[index] = (value * rms) * weight;
+        const float norm = rms * (float)gamma[index] * (float)input[index];
+        output[index] = (half)norm;
     }
 }
 
