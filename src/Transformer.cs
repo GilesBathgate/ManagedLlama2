@@ -57,7 +57,7 @@ public class Transformer
 
         tokenizer = new Tokenizer("tokenizer.bin", config.vocabSize);
 
-        runstate = new RunState(config, kvDim);
+        runstate = new RunState(cudaContext, ref config, kvDim);
 
         sampler = new Sampler(cudaContext, config, runstate);
 
