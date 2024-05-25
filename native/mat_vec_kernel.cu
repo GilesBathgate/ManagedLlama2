@@ -5,27 +5,42 @@
 using WarpReduce = cub::WarpReduce<float>;
 using WarpStorage = WarpReduce::TempStorage;
 
-template <typename T>
+
+template <typename T, typename Block = uint4>
+__forceinline__ __device__ void load_mem(T* dest, const T* src) {
+    *((Block*)dest) = __ldcs((Block*)src);
+}
+
+template <typename T, typename Block = uint4>
 inline __device__ void mat_vec(T* output, const T* vector, const T* matrix, const int rows, const int cols)
 {
+    constexpr int block_size = sizeof(Block) / sizeof(T);
+
     const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
 
     if (col_index >= cols) return;
 
-    const int index = col_index * rows + blockIdx.y;
+    const int index = col_index * rows;
 
     float sum = 0.0f;
-    for (int row_index = threadIdx.x; row_index < rows; row_index += blockDim.x) {
-        const int mat_index = index + row_index;
-        const int vec_index = row_index + blockIdx.y;
-        sum += (float)matrix[mat_index] * (float)vector[vec_index];
+    for (int row_index = threadIdx.x; row_index < rows / block_size; row_index += blockDim.x) {
+        const int vec_index = row_index * block_size;
+        const int mat_index = index + vec_index;
+        half m[block_size];
+        half v[block_size];
+        load_mem<T, Block>(m, &matrix[mat_index]);
+        load_mem<T, Block>(v, &vector[vec_index]);
+
+        #pragma unroll
+        for (int i = 0; i < block_size; ++i)
+            sum += (float)m[i] * (float)v[i];
     }
 
     __shared__ WarpStorage storage;
     sum = WarpReduce(storage).Sum(sum);
 
     if (threadIdx.x == 0)
-        output[col_index + blockIdx.y] = (T)sum;
+        output[col_index] = (T)sum;
 }
 
 __global__ void mat_vec_kernel(half* output, const half* vector, const half* matrix, const int rows, const int cols)
@@ -63,11 +78,6 @@ __global__ void mat_vec_strided_kernel(half* output, const half* vector, const h
     const int v_stride, const int m_col_stride, const int m_row_stride, const int o_stride, const float alpha)
 {
     return mat_vec_strided<half>(output, vector, matrix, rows, cols, v_stride, m_col_stride, m_row_stride, o_stride, alpha);
-}
-
-template <typename T, typename Block = uint4>
-__forceinline__ __device__ void load_mem(T* dest, const T* src) {
-    *((Block*)dest) = __ldcs((Block*)src);
 }
 
 template <typename T>
