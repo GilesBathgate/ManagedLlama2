@@ -13,7 +13,7 @@ public class MatVecInt4Tests : IDisposable
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
-        kernel = cudaContext.LoadKernel("mat_vec_kernel.ptx", "mat_vec_kernel_int4");
+        kernel = cudaContext.LoadKernel("mat_vec_kernel.ptx", "mat_vec_residual_int4_kernel");
     }
 
     public void Dispose() =>
@@ -39,9 +39,8 @@ public class MatVecInt4Tests : IDisposable
         var sc = (CudaDeviceVariable<Half>)w.Scales;
         var xout = (CudaDeviceVariable<Half>)x;
 
-        var pPos = (CudaDeviceVariable<int>)0;
         kernel.Run(xout.DevicePointer, xout.DevicePointer, wt.DevicePointer, ze.DevicePointer, sc.DevicePointer,
-                   inpSize, opSize, packed_zeros_height, scales_height, packed_wt_height, true, -1, pPos.DevicePointer);
+                   inpSize, opSize, packed_zeros_height, scales_height, packed_wt_height);
 
         return (Half[])xout;
     }

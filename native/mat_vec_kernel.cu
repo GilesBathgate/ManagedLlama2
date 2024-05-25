@@ -66,48 +66,86 @@ __global__ void mat_vec_strided_kernel(half* output, const half* vector, const h
     return mat_vec_strided<half>(output, vector, matrix, rows, cols, v_stride, m_col_stride, m_row_stride, o_stride, alpha);
 }
 
-// hardcoded for group-count = 128
-__forceinline__ __device__ float get_mat_vec_int4(int index, const half* __restrict__ input,
-    const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ scales,
-    int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height) {
+template <typename T, typename Block = uint4>
+__forceinline__ __device__ void load_mem(T* dest, const T* src) {
+    *((Block*)dest) = __ldcs((Block*)src);
+}
+
+template <typename T>
+inline __device__ float sum_mat_vec_int4(const T* input, const uint32_t* weights, const uint32_t* zeros, const half* scales,
+    const int rows, const int cols, const int zeros_size, const int scales_size, const int weights_size)
+{
+    const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
+
+    if (col_index >= cols) return;
+
+    constexpr int n_bits = 4;
+    constexpr int i_size = 8;
+    constexpr int w_size = 4;
+    constexpr int z_size = 32;
+    constexpr uint32_t mask = 0xF;
+    constexpr int group_size = 128;
+
+    const int z = threadIdx.x * z_size;
+    const int s = threadIdx.x / w_size;
+    const int w = threadIdx.x * w_size;
+
+    const int z_stride = col_index * zeros_size;
+    const int s_stride = col_index * scales_size;
+    const int w_stride = col_index * weights_size;
 
     float sum = 0;
-    for (int ygq = 0; ygq * 128 + threadIdx.x * 4 < packed_weights_height; ygq++) {   // each iteration of this loop covers 8 x 128 elements in y dimension of weight matrix (weight matrix is column major)
-        uint32_t packed_q_z = loadFromMem(&q_zeros[index * packed_zeros_height + ygq]);
+    for (int g = 0; g * group_size + w < weights_size; ++g) {
+        const int g_stride = g * group_size;
 
-        // load weights in one go (32 elements from weight matrix loaded by each thread in one read)
-        uint32_t loaded_packed_wts[4];
-        *((uint4*)(&loaded_packed_wts[0])) = loadFromMem((uint4*)(&q_weight[index * packed_weights_height + ygq * 128 + threadIdx.x * 4]));
+        const int z_index = z_stride + g;
+        const float zero = (float)(zeros[z_index] >> (s * n_bits) & mask);
 
-        int group_y = ygq * 8 + (threadIdx.x / 4);
-        float q_z = (float)(packed_q_z >> (4 * (threadIdx.x / 4)) & 0xF);
-        float scale = (float)loadFromMem(&scales[index * scales_height + group_y]);
-        int y_base = ygq * 1024 + threadIdx.x * 32;
+        const int s_index = s_stride + g * i_size + s;
+        const float scale = scales[s_index];
 
-        for (int qi = 0; qi < 4; qi++) {                 // each iteration of this loop covers 256 elements in y dimension of weight matrix
-            int ys = y_base + qi * 8;
-            if (ys < inputElements) {
-                uint32_t packed_q_w = loaded_packed_wts[qi];
-                half ip[8];
-                *((uint4*)(&ip)) = *((uint4*)(&input[ys]));
+        const int w_index = w_stride + g_stride + w;
+        uint32_t packed_weights[4];
+        load_mem(packed_weights, &weights[w_index]);
 
-                for (int i = 0; i < 8; i++) {
-                    float q_wt = (float)(packed_q_w & 0xF);
-                    float w = (q_wt - q_z) * scale;
-                    sum += w * float(ip[i]);
-                    packed_q_w = (packed_q_w >> 4);
-                }
+        const int index = g_stride * i_size + z;
+        for (int q = 0; q < w_size; ++q) {
+            const int row_index = index + q * i_size;
+            if (row_index >= rows) continue;
+
+            uint32_t weight = packed_weights[q];
+
+            T ip[8];
+            load_mem(ip, &input[row_index]);
+
+            for (int i = 0; i < i_size; ++i) {
+                const int element = (int)(weight & mask);
+                sum += (float)ip[i] * (element - zero) * scale;
+                weight >>= n_bits;
             }
         }
     }
 
-    using WarpReduce = cub::WarpReduce<float>;
-    __shared__ typename WarpReduce::TempStorage temp;
-    sum = WarpReduce(temp).Sum(sum);
+    __shared__ WarpStorage storage;
+    sum = WarpReduce(storage).Sum(sum);
 
     return sum;
 }
 
+__global__ void mat_vec_residual_int4_kernel(half* output, const half* input, const uint32_t* weights, const uint32_t* zeros, const half* scales,
+    const int rows, const int cols, const int zeros_size, const int scales_size, const int weights_size)
+{
+    float sum = sum_mat_vec_int4<half>(input, weights, zeros, scales, rows, cols, zeros_size, scales_size, weights_size);
+
+    if (threadIdx.x == 0) {
+        const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
+        if (col_index >= cols) return;
+
+        sum += (float)output[col_index]; // Residual accumulation
+
+        output[col_index] = (half)sum;
+    }
+}
 
 __device__ void mat_vec_int4(half* __restrict__ output, const half* __restrict__ input,
     const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ scales,
@@ -118,7 +156,7 @@ __device__ void mat_vec_int4(half* __restrict__ output, const half* __restrict__
         return;
 
 
-    float sum = get_mat_vec_int4(index, input, q_weight, q_zeros, scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
+    float sum = sum_mat_vec_int4(input, q_weight, q_zeros, scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
 
     if (threadIdx.x == 0) {
         if (loff != -1) {
@@ -129,13 +167,6 @@ __device__ void mat_vec_int4(half* __restrict__ output, const half* __restrict__
             sum += (float)output[index];
         output[index] = (half)sum;
     }
-}
-
-__global__ void mat_vec_kernel_int4(half* __restrict__ output, const half* __restrict__ input,
-    const uint32_t* __restrict__ q_weight, const uint32_t* __restrict__ q_zeros, const half* __restrict__ scales,
-    int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height, bool accum, int loff, int* pPos)
-{
-    mat_vec_int4(output, input, q_weight, q_zeros, scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height, accum, loff, pPos);
 }
 
 __global__ void qkv_matvec_kernel(half* __restrict__ q, half* __restrict__ key_cache, half* __restrict__ value_cache, const half* __restrict__ input,
@@ -161,8 +192,8 @@ __global__ void ffn_matvec_silu_kernel(half* __restrict__ output, const half* __
     if (index >= opElements)
         return;
 
-    float g_val = get_mat_vec_int4(index, input, g_weight, g_zeros, g_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
-    float u_val = get_mat_vec_int4(index, input, u_weight, u_zeros, u_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
+    float g_val = sum_mat_vec_int4(input, g_weight, g_zeros, g_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
+    float u_val = sum_mat_vec_int4(input, u_weight, u_zeros, u_scales, inputElements, opElements, packed_zeros_height, scales_height, packed_weights_height);
 
     // apply silu and write the result
     if (threadIdx.x == 0) {
