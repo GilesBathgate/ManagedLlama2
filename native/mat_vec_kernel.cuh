@@ -18,7 +18,7 @@ extern "C" __global__ void qkv_matvec_kernel(half* __restrict__ q, half* __restr
     const uint32_t* __restrict__ v_weight, const uint32_t* __restrict__ v_zeros, const half* __restrict__ v_scales,
     int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height, int loff, int* pPos);
 
-__global__ void ffn_matvec_silu_kernel(half* __restrict__ output, const half* __restrict__ input,
+extern "C" __global__ void ffn_matvec_silu_kernel(half* __restrict__ output, const half* __restrict__ input,
     const uint32_t* __restrict__ g_weight, const uint32_t* __restrict__ g_zeros, const half* __restrict__ g_scales,
     const uint32_t* __restrict__ u_weight, const uint32_t* __restrict__ u_zeros, const half* __restrict__ u_scales,
     int inputElements, int opElements, int packed_zeros_height, int scales_height, int packed_weights_height);
