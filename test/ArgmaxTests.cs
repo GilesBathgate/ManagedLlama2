@@ -25,8 +25,7 @@ public class ArgmaxTests : IDisposable
         var x = (CudaDeviceVariable<Half>)logits;
         var result = new CudaDeviceVariable<int>(1);
 
-        var pPos = (CudaDeviceVariable<int>)(-1);
-        kernel.Run(x.DevicePointer, n, result.DevicePointer, pPos.DevicePointer, pPos.DevicePointer, true);
+        kernel.Run(x.DevicePointer, n, result.DevicePointer, 0, true);
 
         return result[0];
     }

@@ -1,26 +1,29 @@
 #include "argmax_kernel.cuh"
 
-__global__ void argmax_kernel(half* __restrict__ x, int size, int* result, volatile int* pPos, int* pPosGpu, bool write_token) {
-    using BlockReduce = cub::BlockReduce<float, 1024>;
-    __shared__ typename BlockReduce::TempStorage temp;
-    __shared__ float shared_val;
+#include <cub/block/block_reduce.cuh>
 
-    int tid = threadIdx.x;
-    int step = blockDim.x;
+using BlockReduce = cub::BlockReduce<float, 1024>;
+using BlockStorage = BlockReduce::TempStorage;
+
+template <typename T>
+inline __device__ void argmax(const T* input, const int size, int* result, const int pos, const bool write_token)
+{
+    const int index = blockDim.x + threadIdx.x;
 
     // find local max value and its position
-    float max_val = tid < size ? (float)x[tid] : -INFINITY;
-    int   max_pos = tid < size ? tid : 0;
-    for (int i = tid + step; i < size; i += step) {
-        if ((float)x[i] > max_val) {
-            max_val = x[i];
+    float max_val = threadIdx.x < size ? (float)input[threadIdx.x] : -INFINITY;
+    int   max_pos = threadIdx.x < size ? threadIdx.x : 0;
+    for (int i = index; i < size; i += blockDim.x) {
+        if ((float)input[i] > max_val) {
+            max_val = input[i];
             max_pos = i;
         }
     }
 
     // find the global max value
-    float global_max_val;
-    global_max_val = BlockReduce(temp).Reduce(max_val, cub::Max());
+    __shared__ float shared_val;
+    __shared__ BlockStorage storage;
+    float global_max_val = BlockReduce(storage).Reduce(max_val, cub::Max());
     if (threadIdx.x == 0)
         shared_val = global_max_val;
     __syncthreads();
@@ -28,21 +31,16 @@ __global__ void argmax_kernel(half* __restrict__ x, int size, int* result, volat
 
     // possibility of race condition here, so we first write it to shared memory variable and then have just one thread to update the pointers.
     __shared__ int global_max_pos;
-    if (max_val == global_max_val) {
+    if (max_val == global_max_val)
         global_max_pos = max_pos;
-    }
     __syncthreads();
 
     // write next token to the current token location
-    if (threadIdx.x == 0) {
-        int token_pos = *pPos;
-        token_pos++;
+    if (threadIdx.x == 0 && write_token)
+        result[pos] = global_max_pos;
+}
 
-        if (write_token)
-            result[token_pos] = global_max_pos;
-
-        // update the token indices (unblocks the CPU)
-        *pPos = token_pos;
-        *pPosGpu = token_pos;
-    }
+__global__ void argmax_kernel(const half* input, const int size, int* result, const int pos, const bool write_token)
+{
+    return argmax<half>(input, size, result, pos, write_token);
 }
