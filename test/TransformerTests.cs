@@ -1,26 +1,25 @@
+using System.Text;
+
 namespace libLlama2.UnitTests;
 
 public class TransformerTests
 {
-    private static Half ToHalf(uint i) => BitConverter.ToHalf(BitConverter.GetBytes(i), 0);
 
     [Fact(Skip = "Requires much memory")]
     public void Test_Transformer()
     {
-        var expected = new uint[] {
-            0x3009, 0xb790, 0x33a1, 0xba6d, 0x3e23, 0x4181, 0x3e74, 0x4120,
-            0x3d3f, 0x366a, 0x3ebd, 0x3be8, 0x38b5, 0x36fa, 0x3d1d, 0x3747 };
-
-        var expectedLogits = expected.Select(ToHalf);
+        var expected = "You are a helpful assistant.  You are able to assist the user in a variety of ways";
 
         var transformer = new Transformer("model-7b.bin");
-        var stream = transformer.Generate(" You are a helpful assistant", 50);
-        foreach(var s in stream)
-            Console.Write(s);
+        var tokens = transformer.Generate(" You are a helpful assistant. ", 19);
 
-        var actual = transformer.testLogits.First().Take(expected.Length);
+        var builder = new StringBuilder();
+        foreach(var token in tokens)
+            builder.Append(token);
 
-        Assert.Equal(expectedLogits, actual);
+        var actual = builder.ToString();
+
+        Assert.Equal(expected, actual);
     }
 
     [Fact(Skip = "Requires tokenizer.bin")]

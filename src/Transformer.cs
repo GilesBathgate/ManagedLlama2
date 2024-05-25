@@ -84,8 +84,6 @@ public class Transformer
         fileStream.Close();
     }
 
-    public IList<Half[]> testLogits = new List<Half[]>();
-
     public IEnumerable<string> Generate(string prompt, int steps)
     {
         var promptTokens = tokenizer.Encode(prompt, true);
@@ -98,8 +96,6 @@ public class Transformer
 
             var seq_len_bin = pos + 1;
             Forward(pos, seq_len_bin);
-
-            testLogits.Add(runstate.logits);
 
             var generateToken = pos >= promptTokens.Length - 1;
 
