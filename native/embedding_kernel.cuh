@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cuda_runtime_api.h>
-#include <cub/cub.cuh>
+#include <cuda_fp16.h>
 
-extern "C" __global__ void copy_embedding_kernel(half* x, const half* __restrict__ table, int size, int* tokens, int* pPos);
+extern "C" __global__ void embedding_kernel(half* output, const half* table, const int size, const int* tokens, const int pos);

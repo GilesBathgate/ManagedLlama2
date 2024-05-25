@@ -12,7 +12,7 @@ public class EmbeddingTableTests : IDisposable
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
-        kernel = cudaContext.LoadKernel("embedding_kernel.ptx", "copy_embedding_kernel");
+        kernel = cudaContext.LoadKernel("embedding_kernel.ptx", "embedding_kernel");
     }
 
     public void Dispose() =>
@@ -31,8 +31,8 @@ public class EmbeddingTableTests : IDisposable
         var x = new CudaDeviceVariable<Half>(dim);
         var t = (CudaDeviceVariable<Half>)table;
         var tk = (CudaDeviceVariable<int>)tokens;
-        var pPos = (CudaDeviceVariable<int>)0;
-        kernel.Run(x.DevicePointer, t.DevicePointer, dim, tk.DevicePointer, pPos.DevicePointer);
+
+        kernel.Run(x.DevicePointer, t.DevicePointer, dim, tk.DevicePointer, 0);
 
         return (Half[])x;
     }
