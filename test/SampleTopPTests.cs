@@ -25,9 +25,8 @@ public class SampleTopPTests : IDisposable
         var size = x.Length;
         var x1 = (CudaDeviceVariable<Half>)x;
         var x2 = (CudaDeviceVariable<int>)indices;
-        var pPos = (CudaDeviceVariable<int>)(-1);
         var result = new CudaDeviceVariable<int>(1);
-        kernel.Run(x1.DevicePointer, x2.DevicePointer, size, threshold, result.DevicePointer, pPos.DevicePointer, pPos.DevicePointer);
+        kernel.Run(x1.DevicePointer, x2.DevicePointer, size, threshold, result.DevicePointer, 0);
 
         return result[0];
     }
