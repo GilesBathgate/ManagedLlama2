@@ -32,6 +32,7 @@
   <ItemGroup>
     <None Include="$(BuildDir)\convert_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\cumulative_sum_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\sort_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\vecadd_kernel.ptx" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
