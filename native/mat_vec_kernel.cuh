@@ -5,7 +5,7 @@
 #include "common.cuh"
 
 // Only used for the final linear layer to get logits (for most other layers we use the INT4 version below)
-__global__ void mat_vec_kernel(half* op, const half* ip, const half* wt, int n, int d, int numSerialLoads,
+extern "C" __global__ void mat_vec_kernel(half* op, const half* ip, const half* wt, int n, int d, int numSerialLoads,
     int ip_stride, int w_stride, int op_stride, int w_row_stride, float alpha);
 
 // Simpler version of the above - handles non multiple of 8 dimensions too (used only by MHA block)
