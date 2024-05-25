@@ -10,9 +10,14 @@ public class Downloader
 
     private const string configUrl = "https://huggingface.co/abhinavkulkarni/meta-llama-Llama-2-7b-chat-hf-w4-g128-awq/resolve/main/config.json";
 
+    private const string tokenizerURL = "https://huggingface.co/abhinavkulkarni/meta-llama-Llama-2-7b-chat-hf-w4-g128-awq/resolve/main/tokenizer.model";
+
 
     public static void DownloadDefaultModel(string modelPath) =>
         Download(modelUrl, modelPath, modelHash, TimeSpan.FromSeconds(1));
+
+    public static void DownloadDefaultTokeniser(string tokenizerPath) =>
+        Download(tokenizerURL, tokenizerPath, null, TimeSpan.FromMilliseconds(10));
 
     public static void DownloadDefaultConfig(string configPath) =>
         Download(configUrl, configPath, null, TimeSpan.FromMilliseconds(5));

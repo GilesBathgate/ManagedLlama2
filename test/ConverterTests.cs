@@ -2,9 +2,9 @@ using System.Security.Cryptography;
 
 namespace libLlama2.UnitTests;
 
-public class ModelConverterTests
+public class ConverterTests
 {
-    private static byte[] Convert(string outputPath)
+    private static byte[] ConvertModel(string outputPath)
     {
         var converter = new ModelConverter(download: true);
         using var fileStream = File.Create(outputPath);
@@ -15,13 +15,6 @@ public class ModelConverterTests
         return hash.Hash!;
     }
 
-    private static byte[] Check(string outputPath)
-    {
-        using var fileStream = File.OpenRead(outputPath);
-        using var hash = SHA256.Create();
-        return hash.ComputeHash(fileStream);
-    }
-
     [Fact]
     public void ModelConverter_Test()
     {
@@ -29,10 +22,17 @@ public class ModelConverterTests
 
         var outputPath = "model-7b.bin";
 
-        var hashBytes = File.Exists(outputPath) ? Check(outputPath) : Convert(outputPath);
+        var hashBytes = ConvertModel(outputPath);
 
         var actualHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
 
         Assert.Equal(expectedHash, actualHash);
+    }
+
+    [Fact]
+    public void TokenizerConverter_Test()
+    {
+        var converter = new TokenizerConverter(download: true);
+        converter.Convert("tokenizer.bin");
     }
 }
