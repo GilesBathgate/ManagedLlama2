@@ -102,7 +102,7 @@ public class Transformer
 
             var token = generateToken ? sampler.Sample(pos, generateToken) : promptTokens[pos + 1];
 
-            if (token == 1) break;
+            if (token < 3) break;
 
             var piece = tokenizer.Decode(prev, token);
             yield return piece;
