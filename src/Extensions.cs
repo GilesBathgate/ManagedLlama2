@@ -1,3 +1,6 @@
+using ManagedCuda;
+using ManagedCuda.BasicTypes;
+
 namespace libLlama2;
 
 public static class Extensions
@@ -13,4 +16,7 @@ public static class Extensions
 
     public static IEnumerable<(int index, T value)> Enumerate<T>(this IEnumerable<T> values)
             => values.Select((value, index) => (index, value));
+
+    public static CUdeviceptr OffsetPointer<T>(this CudaDeviceVariable<T> value, SizeT offset) where T : struct =>
+        value.DevicePointer + (offset * value.TypeSize);
 }

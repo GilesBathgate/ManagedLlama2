@@ -347,9 +347,9 @@ public class Transformer
     private void MultiHeadAttention(CudaDeviceVariable<Half> output, CudaDeviceVariable<Half> query, CudaDeviceVariable<Half> key, CudaDeviceVariable<Half> value,
                                     CudaDeviceVariable<Half> attention, int headSize, int dim, int seqLength, SizeT layerOffset, float scale)
     {
-        matVecStridedKernel.Run(attention.DevicePointer, query.DevicePointer, key.DevicePointer + layerOffset, headSize, seqLength, headSize, headSize, dim, seqLength, scale);
+        matVecStridedKernel.Run(attention.DevicePointer, query.DevicePointer, key.OffsetPointer(layerOffset), headSize, seqLength, headSize, headSize, dim, seqLength, scale);
         softmaxKernel.Run(attention.DevicePointer, seqLength);
-        vecMatKernel.Run(output.DevicePointer, attention.DevicePointer, value.DevicePointer + layerOffset, headSize, seqLength, headSize, headSize, dim);
+        vecMatKernel.Run(output.DevicePointer, attention.DevicePointer, value.OffsetPointer(layerOffset), headSize, seqLength, headSize, headSize, dim);
     }
 
     private void QKVMatVec(CudaDeviceVariable<Half> queryOutput, CudaDeviceVariable<Half> keyOutput, CudaDeviceVariable<Half> valueOutput,
@@ -358,8 +358,8 @@ public class Transformer
         var scalesSize = CeilDiv(rows, 128);
         var weightsSize = CeilDiv(rows, 32) * 4;
         var zerosSize = CeilDiv(scalesSize, 8);
-        var offset = layerOffset + pos * cols;
-        qkvMatVecKernel.Run(queryOutput.DevicePointer, keyOutput.DevicePointer + offset, valueOutput.DevicePointer + offset, input.DevicePointer,
+        SizeT offset = layerOffset + pos * kvDim;
+        qkvMatVecKernel.Run(queryOutput.DevicePointer, keyOutput.OffsetPointer(offset), valueOutput.OffsetPointer(offset), input.DevicePointer,
                             query.Weight.DevicePointer, query.Zeros.DevicePointer, query.Scales.DevicePointer,
                             key.Weight.DevicePointer, key.Zeros.DevicePointer, key.Scales.DevicePointer,
                             value.Weight.DevicePointer, value.Zeros.DevicePointer, value.Scales.DevicePointer,
@@ -372,8 +372,8 @@ public class Transformer
     private void RoPERotation(CudaDeviceVariable<Half> query, CudaDeviceVariable<Half> key,
                               int numHeads, int numKVHeads, int headSize, int pos, SizeT layerOffset, float theta)
     {
-        var offset = layerOffset + pos * numKVHeads * headSize;
-        ropeKernel.Run(query.DevicePointer, key.DevicePointer + offset, headSize, numHeads, numKVHeads, pos, theta);
+        SizeT offset = layerOffset + pos * kvDim;
+        ropeKernel.Run(query.DevicePointer, key.OffsetPointer(offset), numKVHeads, headSize, pos, theta);
     }
 
     private void Forward(int position, int seq_len_bin)
