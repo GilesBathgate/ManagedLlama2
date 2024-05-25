@@ -61,14 +61,30 @@ public partial class Tokenizer : ITokenizer
         piece = (prev == BOS && piece[0] == ' ') ? piece.TrimStart() : piece;
 
         var match = EncodedByteRegex().Match(piece);
-        if (!match.Success)
+        if (match.Success)
+        {
+            var value = match.Groups[1].Value;
+            var byteValue = Convert.ToByte(value, 16);
+
+            multibyte.Add(byteValue);
+
+            if (byteValue > 0x80 || (byteValue & 0xc0) == 0x80)
+                return string.Empty;
+        }
+
+        if (!multibyte.Any())
             return piece;
 
-        var value = match.Groups[1].Value;
-        var byteValue = Convert.ToByte(value, 16);
-        var charValue = Convert.ToChar(byteValue);
-        return charValue.ToString();
+        var result = Encoding.UTF8.GetString(multibyte.ToArray());
+
+        if (!match.Success)
+            result += piece;
+
+        multibyte.Clear();
+        return result;
     }
+
+    private readonly List<byte> multibyte = new();
 
     private int StrLookup(string str)
     {
@@ -91,15 +107,26 @@ public partial class Tokenizer : ITokenizer
             tokens.Add(dummy_prefix);
         }
 
+        var prev = '\0';
         foreach (char c in prompt)
         {
             var id = StrLookup(c.ToString());
-            if (id != -1) {
+            if (id != -1)
+            {
                 tokens.Add(id);
-            } else {
-                var bytes = Encoding.UTF8.GetBytes(c.ToString());
-                foreach(var b in bytes)
+            }
+            else
+            {
+                if (char.IsHighSurrogate(c))
+                {
+                    prev = c;
+                    continue;
+                }
+                var chars = char.IsSurrogatePair(prev, c) ? new[] { prev, c } : new[] { c };
+                var bytes = Encoding.UTF8.GetBytes(chars);
+                foreach (var b in bytes)
                     tokens.Add(b + 3);
+                prev = '\0';
             }
         }
 

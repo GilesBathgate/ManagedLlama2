@@ -28,6 +28,7 @@ public class TransformerTests
         yield return new object[] { "<<SYS>>", new[] { 1, 3532, 14816, 29903, 6778, 2 } };
         yield return new object[] { "[/INST]", new[] { 1, 518, 29914, 25580, 29962, 2 } };
         yield return new object[] { "\n", new[] { 1, 29871, 13, 2 } };
+        yield return new object[] { "🦙", new[] { 1, 29871, 243, 162, 169, 156, 2 } };
     }
 
     [Theory(Skip = "Requires tokenizer.bin")]
