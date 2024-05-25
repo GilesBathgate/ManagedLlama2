@@ -13,6 +13,7 @@ set(CUDA_SEPARABLE_COMPILATION ON)
 add_library(Llama2 OBJECT
     argmax_kernel.cu
     convert_kernel.cu
+    cumulative_sum_kernel.cu
     embedding_kernel.cu
     mat_vec_kernel.cu
     rmsnorm_kernel.cu
