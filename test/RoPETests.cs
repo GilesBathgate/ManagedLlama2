@@ -1,6 +1,7 @@
 namespace libLlama2.UnitTests;
 
 using ManagedCuda;
+using ManagedCuda.BasicTypes;
 
 public class RoPETests : IDisposable
 {
@@ -12,7 +13,7 @@ public class RoPETests : IDisposable
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
-        kernel = cudaContext.LoadKernel("rope_kernel.ptx", "RoPERotation_kernel");
+        kernel = cudaContext.LoadKernel("rope_kernel.ptx", "rope_kernel");
     }
 
     public void Dispose() =>
@@ -23,12 +24,16 @@ public class RoPETests : IDisposable
         var sq = (CudaDeviceVariable<Half>)q;
         var sk = (CudaDeviceVariable<Half>)k;
 
+        const int l = 0;
+        int kv_dim = (dim * n_kv_heads) / n_heads;
         int head_size = dim / n_heads;
+        int loff = l * seq_len * kv_dim;
+        SizeT offset = l + loff + pos * kv_dim;
+
         kernel.GridDimensions = n_heads;
         kernel.BlockDimensions = head_size / 2;
 
-        var pPos = (CudaDeviceVariable<int>)pos;
-        kernel.Run(sq.DevicePointer, sk.DevicePointer, n_kv_heads, head_size, pPos.DevicePointer, 0, theta);
+        kernel.Run(sq.DevicePointer, sk.DevicePointer + (offset * sk.TypeSize), n_kv_heads, head_size, pos, theta);
 
         q = (Half[])sq;
         k = (Half[])sk;
@@ -41,32 +46,37 @@ public class RoPETests : IDisposable
         int head_size = dim / n_heads;
         int loff = l * seq_len * kv_dim;
         int _k = l + loff + pos * kv_dim;
+        int size = head_size / 2;
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
-        for (int i = 0; i < dim; i += 2)
+        for (int h = 0; h < n_heads; ++h)
         {
-            int j = i + 1;
-            int head_dim = i % head_size;
-            float freq = 1.0f / MathF.Pow(theta, head_dim / (float)head_size);
-            float val = pos * freq;
-            float fci = MathF.Sin(val);
-            float fcr = MathF.Cos(val);
-            int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
-            for (int v = 0; v < rotn; v++)
+            for (int t = 0; t < size; ++t)
             {
-                if (v == 0)
+                int i = h * head_size + t;
+                int j = size + i;
+                int head_dim = i * 2 % head_size;
+                float freq = 1.0f / MathF.Pow(theta, head_dim / (float)head_size);
+                float val = pos * freq;
+                float fci = MathF.Sin(val);
+                float fcr = MathF.Cos(val);
+                int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
+                for (int v = 0; v < rotn; v++)
                 {
-                    var v0 = (float)q[i];
-                    var v1 = (float)q[j];
-                    q[i] = (Half)(v0 * fcr - v1 * fci);
-                    q[j] = (Half)(v0 * fci + v1 * fcr);
-                }
-                else
-                {
-                    var v0 = (float)k[_k + i];
-                    var v1 = (float)k[_k + j];
-                    k[_k + i] = (Half)(v0 * fcr - v1 * fci);
-                    k[_k + j] = (Half)(v0 * fci + v1 * fcr);
+                    if (v == 0)
+                    {
+                        var v0 = (float)q[i];
+                        var v1 = (float)q[j];
+                        q[i] = (Half)(v0 * fcr - v1 * fci);
+                        q[j] = (Half)(v0 * fci + v1 * fcr);
+                    }
+                    else
+                    {
+                        var v0 = (float)k[_k + i];
+                        var v1 = (float)k[_k + j];
+                        k[_k + i] = (Half)(v0 * fcr - v1 * fci);
+                        k[_k + j] = (Half)(v0 * fci + v1 * fcr);
+                    }
                 }
             }
         }
@@ -89,8 +99,8 @@ public class RoPETests : IDisposable
         const int heads = 32;
         var q = generator.NextArray(dim);
         var k = generator.NextArray(dim * seq_len);
-        for (int pos = 0; pos < seq_len; ++pos)
-            yield return new object[] { q, k, dim, seq_len, heads, 0 };
+        for (int pos = 0; pos < seq_len - 1; ++pos)
+            yield return new object[] { q, k, dim, seq_len, heads, pos };
     }
 
     [Theory]

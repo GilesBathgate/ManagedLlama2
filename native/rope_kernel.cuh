@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cuda_runtime_api.h>
-#include <cub/cub.cuh>
+#include <cuda_fp16.h>
 
 // Each block processes a single head
-extern "C" __global__ void RoPERotation_kernel(half* sq, half* sk_base, int num_kv_heads, int head_size, int* pPos, int loff, float rope_theta);
+extern "C" __global__ void rope_kernel(half* sq, half* sk_base, int num_kv_heads, int head_size, int pos, float rope_theta);
