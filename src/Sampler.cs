@@ -18,15 +18,14 @@ public class Sampler : ISampler
         argmax = new Argmax(context);
     }
 
-    public int Sample(int pos, bool generateToken)
+    public int Sample(int nextPosition, bool generateToken)
     {
-        var nextPos = pos + 1;
         if (temperature == 0.0f || !generateToken)
         {
-            argmax.Forward(runstate.logits, config.vocabSize, runstate.tokens, nextPos, generateToken);
+            argmax.Forward(runstate.logits, config.vocabSize, runstate.tokens, nextPosition, generateToken);
         }
 
-        return runstate.tokens[nextPos];
+        return runstate.tokens[nextPosition];
     }
 
 }

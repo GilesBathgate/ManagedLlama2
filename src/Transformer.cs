@@ -95,12 +95,12 @@ public class Transformer
         for (int pos = 0; pos < steps; ++pos)
         {
 
-            var seq_len_bin = pos + 1;
-            Forward(pos, seq_len_bin);
+            var nextPos = pos + 1;
+            Forward(pos, nextPos);
 
-            var generateToken = pos >= promptTokens.Length - 1;
+            var generateToken = nextPos >= promptTokens.Length;
 
-            var token = generateToken ? sampler.Sample(pos, generateToken) : promptTokens[pos + 1];
+            var token = generateToken ? sampler.Sample(nextPos, generateToken) : promptTokens[nextPos];
 
             if (token < 3) break;
 
@@ -118,7 +118,7 @@ public class Transformer
         vecMat.Forward(output, value, attention, headSize, dim, seqLength, layerOffset);
     }
 
-    private void Forward(int position, int seq_len_bin)
+    private void Forward(int position, int nextPosition)
     {
         var headSize = config.dim / config.numHeads;
         var scale = 1.0f / MathF.Sqrt(headSize);
@@ -135,7 +135,7 @@ public class Transformer
 
             rope.Forward(runstate.q, runstate.keyCache, config.numKVHeads, headSize, position, layerOffset, config.ropeTheta);
 
-            MultiHeadAttention(runstate.xb, runstate.q, runstate.keyCache, runstate.valueCache, runstate.attention, headSize, config.dim, seq_len_bin, layerOffset, scale);
+            MultiHeadAttention(runstate.xb, runstate.q, runstate.keyCache, runstate.valueCache, runstate.attention, headSize, config.dim, nextPosition, layerOffset, scale);
 
             matVecResidual.Forward(runstate.x, runstate.xb, layer.outputWeight, config.dim, config.dim);
 
