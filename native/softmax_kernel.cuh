@@ -4,4 +4,4 @@
 #include <cub/cub.cuh>
 #include "common.cuh"
 
-__global__ void softmax_kernel(half* __restrict__ arr, int num_heads, int* pPos);
+extern "C" __global__ void softmax_kernel(half* __restrict__ arr, int num_heads, int* pPos);
