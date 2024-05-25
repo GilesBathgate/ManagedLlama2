@@ -25,3 +25,8 @@ add_library(Llama2 OBJECT
 # Set CUDA architectures the library supports
 set_property(TARGET Llama2 PROPERTY CUDA_ARCHITECTURES 86-real 86-virtual)
 set_property(TARGET Llama2 PROPERTY CUDA_PTX_COMPILATION ON)
+# Install the ptx files in the source directory
+install(
+    FILES $<TARGET_OBJECTS:Llama2>
+    DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}
+)
