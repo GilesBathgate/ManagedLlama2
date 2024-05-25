@@ -1,6 +1,6 @@
 build/
-*/bin/
-*/obj/
+**/bin/
+**/obj/
 .mono
 .vscode
 native/*.ptx
