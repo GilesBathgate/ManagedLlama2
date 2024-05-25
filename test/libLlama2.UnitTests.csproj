@@ -25,4 +25,13 @@
     <ProjectReference Include="..\src\libLlama2.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <BuildDir>$(SolutionDir)\native</BuildDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(BuildDir)\convert_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\vecadd_kernel.ptx" CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
 </Project>
