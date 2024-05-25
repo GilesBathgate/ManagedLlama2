@@ -15,14 +15,30 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="$(BuildDir)\argmax_kernel.ptx" CopyToOutputDirectory="Always" />
-    <None Include="$(BuildDir)\embedding_kernel.ptx" CopyToOutputDirectory="Always" />
-    <None Include="$(BuildDir)\mat_vec_kernel.ptx" CopyToOutputDirectory="Always" />
-    <None Include="$(BuildDir)\rmsnorm_kernel.ptx" CopyToOutputDirectory="Always" />
-    <None Include="$(BuildDir)\rope_kernel.ptx" CopyToOutputDirectory="Always" />
-    <None Include="$(BuildDir)\softmax_kernel.ptx" CopyToOutputDirectory="Always" />
-    <None Include="$(BuildDir)\softmax_logits_kernel.ptx" CopyToOutputDirectory="Always" />
-    <None Include="$(BuildDir)\vec_mat_kernel.ptx" CopyToOutputDirectory="Always" />
+    <EmbeddedResource Include="$(BuildDir)\argmax_kernel.ptx">
+      <LogicalName>argmax_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\embedding_kernel.ptx">
+      <LogicalName>embedding_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\mat_vec_kernel.ptx">
+      <LogicalName>mat_vec_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\rmsnorm_kernel.ptx">
+      <LogicalName>rmsnorm_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\rope_kernel.ptx">
+      <LogicalName>rope_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\softmax_kernel.ptx">
+      <LogicalName>softmax_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\softmax_logits_kernel.ptx">
+      <LogicalName>softmax_logits_kernel.ptx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\vec_mat_kernel.ptx">
+      <LogicalName>vec_mat_kernel.ptx</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

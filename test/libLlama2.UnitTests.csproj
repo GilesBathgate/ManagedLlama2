@@ -30,6 +30,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="$(BuildDir)\argmax_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\embedding_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\mat_vec_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\rmsnorm_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\rope_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\softmax_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\softmax_logits_kernel.ptx" CopyToOutputDirectory="Always" />
+    <None Include="$(BuildDir)\vec_mat_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\convert_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\cumulative_sum_kernel.ptx" CopyToOutputDirectory="Always" />
     <None Include="$(BuildDir)\sort_kernel.ptx" CopyToOutputDirectory="Always" />
