@@ -10,4 +10,7 @@ public static class Extensions
 
     public static Half[] ToHalf(this IEnumerable<int> values) =>
         values.Select(x => (Half)x).ToArray();
+
+    public static IEnumerable<(int index, T value)> Enumerate<T>(this IEnumerable<T> values)
+            => values.Select((value, index) => (index, value));
 }
