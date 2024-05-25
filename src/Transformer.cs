@@ -41,6 +41,8 @@ public class Transformer
 
     private readonly ITokenizer tokenizer;
 
+    private readonly ISampler sampler;
+
     public Transformer(string modelPath) : this(File.OpenRead(modelPath)) {}
 
     public Transformer(FileStream fileStream)
@@ -60,6 +62,8 @@ public class Transformer
         tokenizer = new Tokenizer("tokenizer.bin", config.vocab_size);
 
         runstate = InitRunState();
+
+        sampler = new Sampler(cudaContext, config, runstate);
 
         embeddingKernel = InitEmbeddingKernel();
 
@@ -88,36 +92,28 @@ public class Transformer
     {
         var promptTokens = tokenizer.Encode(prompt, true);
 
-        var next = 0;
-        var token = promptTokens[0];
-        var pos = 0;
-
         runstate.tokens.CopyToDevice(promptTokens);
 
         Half[]? testLogits = null;
 
-        while(pos < steps) {
+        var prev = promptTokens[0];
+        for (int pos = 0; pos < steps; ++pos)
+        {
 
             var seq_len_bin = pos + 1;
             Forward(pos, seq_len_bin);
 
             testLogits ??= runstate.logits;
 
-            if (pos < promptTokens.Length - 1) {
-                // if we are still processing the input prompt, force the next prompt token
-                next = promptTokens[pos + 1];
-            } else {
-                // otherwise sample the next token from the logits
-            }
-            ++pos;
+            var generateToken = pos >= promptTokens.Length - 1;
 
-            // data-dependent terminating condition: the BOS (=1) token delimits sequences
-            if (next == 1) { break; }
+            var token = generateToken ? sampler.Sample(pos, generateToken) : promptTokens[pos + 1];
 
-            // print the token as string, decode it with the Tokenizer object
-            var piece = tokenizer.Decode(token, next);
+            if (token == 1) break;
+
+            var piece = tokenizer.Decode(prev, token);
             Console.Write(piece);
-            token = next;
+            prev = token;
         }
 
         return testLogits!;
