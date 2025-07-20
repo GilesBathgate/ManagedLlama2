@@ -86,7 +86,7 @@ inline __device__ float sum_mat_vec_int4(const T* input, const uint32_t* weights
 {
     const int col_index = blockIdx.x * blockDim.y + threadIdx.y;
 
-    if (col_index >= cols) return;
+    if (col_index >= cols) return 0.0f;
 
     constexpr int n_bits = 4;
     constexpr int i_size = 8;

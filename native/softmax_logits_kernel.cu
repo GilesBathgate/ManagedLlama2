@@ -24,7 +24,7 @@ inline __device__ void softmax_logits(T* logits, const int size, const float tem
     __shared__ float shared_val;
     __shared__ BlockStorage storage;
     // find max value (for numerical stability)
-    float max_val = threadIdx.x < size ? ((float)logits[threadIdx.x]) : -FLT_MAX;
+    float max_val = threadIdx.x < size ? ((float)logits[threadIdx.x]) : -__FLT_MAX__;
     for (int i = threadIdx.x + blockDim.x; i < size; i += blockDim.x)
         if ((float)logits[i] > max_val)
             max_val = logits[i];
