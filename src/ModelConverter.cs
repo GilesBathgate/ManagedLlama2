@@ -92,7 +92,7 @@ public class ModelConverter : IDisposable
         public int NumKeyValueHeads { get; set; }
 
         [JsonPropertyName("rope_theta")]
-        public float RopeTheta { get; set; }
+        public float? RopeTheta { get; set; }
 
         [JsonPropertyName("vocab_size")]
         public int VocabSize { get; set; }
@@ -103,6 +103,8 @@ public class ModelConverter : IDisposable
             var jsonConfig = JsonSerializer.Deserialize<JsonConfig>(configStream)
                 ?? throw new FileLoadException("Config could not be loaded");
 
+            const float defaultRopeTheta = 10000.0f;
+
             return new Config
             {
                 dim = jsonConfig.HiddenSize,
@@ -112,7 +114,7 @@ public class ModelConverter : IDisposable
                 numKVHeads = jsonConfig.NumKeyValueHeads,
                 vocabSize = jsonConfig.VocabSize,
                 seqLength = jsonConfig.MaxPositionEmbeddings,
-                ropeTheta = jsonConfig.RopeTheta
+                ropeTheta = jsonConfig.RopeTheta ?? defaultRopeTheta
             };
         }
     }
