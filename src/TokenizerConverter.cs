@@ -5,6 +5,7 @@ namespace libLlama2;
 
 public class TokenizerConverter : IDisposable
 {
+    private readonly Downloader downloader;
     private readonly string tokenizerPath;
 
     public TokenizerConverter(bool download) : this("tokenizer.spm", download)
@@ -15,7 +16,7 @@ public class TokenizerConverter : IDisposable
     {
         if (download)
         {
-            var downloader = new TokenizerDownloader(tokenizerPath);
+            downloader = new TokenizerDownloader(tokenizerPath);
             downloader.Download();
         }
         else
@@ -29,6 +30,8 @@ public class TokenizerConverter : IDisposable
 
     public void Dispose()
     {
+        if (downloader is null) return;
+
         File.Delete(tokenizerPath);
     }
 

@@ -10,6 +10,8 @@ namespace libLlama2;
 
 public class ModelConverter : IDisposable
 {
+    private readonly Downloader downloader;
+
     private readonly List<string> modelPaths;
 
     private readonly string configPath;
@@ -28,7 +30,6 @@ public class ModelConverter : IDisposable
     {
         if (download)
         {
-            Downloader downloader;
             if (modelType == ModelType.Llama2_AWQ_13b)
             {
                 modelPaths = GetTempPaths(modelPath);
@@ -58,6 +59,8 @@ public class ModelConverter : IDisposable
 
     public void Dispose()
     {
+        if (downloader is null) return;
+
         foreach (var file in modelPaths)
             File.Delete(file);
         File.Delete(configPath);
