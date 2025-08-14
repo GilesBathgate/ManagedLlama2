@@ -250,11 +250,16 @@ public class ModelConverter : IDisposable
             break;
             case Format.v1:
             {
-                int orig_scales_height = zerosSize * 8;
-                ushort[] scales_t = new ushort[scalesSize * width];
-                for (int x = 0; x < width; x++)
-                    for (int y = 0; y < scalesSize; y++)
-                        scales_t[x * scalesSize + y] = scales[x * orig_scales_height + y];
+                var originalScalesHeight = zerosSize * 8;
+                var scales_t = new ushort[scalesSize * width];
+                for (int x = 0; x < width; ++x)
+                {
+                    for (int y = 0; y < scalesSize; ++y)
+                    {
+                        int i = (x * originalScalesHeight + y) * sizeofHalf;
+                        scales_t[x * scalesSize + y] = (ushort)(scales[i] | (scales[i + 1] << 8));
+                    }
+                }
 
                 scales = MemoryMarshal.Cast<ushort, byte>(scales_t).ToArray();
             }
