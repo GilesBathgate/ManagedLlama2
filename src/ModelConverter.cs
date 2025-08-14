@@ -26,20 +26,20 @@ public class ModelConverter : IDisposable
 
     public ModelConverter(string modelPath, string configPath, ModelType modelType, bool download = false)
     {
-        Downloader downloader;
-        if (modelType == ModelType.Llama2_AWQ_13b)
-        {
-            modelPaths = GetTempPaths(modelPath);
-            downloader = new Model13bDownloader(modelPaths, configPath);
-        }
-        else
-        {
-            modelPaths = new List<string> { modelPath };
-            downloader = new Model7bDownloader(modelPath, configPath);
-        }
-
         if (download)
         {
+            Downloader downloader;
+            if (modelType == ModelType.Llama2_AWQ_13b)
+            {
+                modelPaths = GetTempPaths(modelPath);
+                downloader = new Model13bDownloader(modelPaths, configPath);
+            }
+            else
+            {
+                modelPaths = new List<string> { modelPath };
+                downloader = new Model7bDownloader(modelPath, configPath);
+            }
+
             downloader.Download();
         }
         else
@@ -49,6 +49,8 @@ public class ModelConverter : IDisposable
 
             if (!File.Exists(configPath))
                 throw new ArgumentException("Download set to false and config path does not exist");
+
+            modelPaths = new List<string> { modelPath };
         }
 
         this.configPath = configPath;
@@ -115,12 +117,12 @@ public class ModelConverter : IDisposable
         }
     }
 
-    public enum Format { OldAWQFormat, NewFormat }
+    public enum Format { v0, v1, v2 }
 
-    public void Convert(string outputPath, Format format = Format.OldAWQFormat) =>
+    public void Convert(string outputPath, Format format = Format.v0) =>
         Convert(File.Create(outputPath), format);
 
-    public void Convert(Stream outputStream, Format format = Format.OldAWQFormat)
+    public void Convert(Stream outputStream, Format format = Format.v0)
     {
         Console.WriteLine($"Converting");
         using var archives = new DisposableList<ZipArchive>();
@@ -175,7 +177,12 @@ public class ModelConverter : IDisposable
         using var unpickler = new TorchUnpickler(archive);
         var table = (Hashtable)unpickler.load(pickle.Open());
         foreach (DictionaryEntry entry in table)
-            state.Add((string)entry.Key, (Tensor)entry.Value!);
+        {
+            if (entry.Value is Tensor tensor)
+            {
+                state.Add((string)entry.Key, tensor);
+            }
+        }
     }
 
     protected static int CeilDiv(int a, int b) =>
@@ -193,21 +200,27 @@ public class ModelConverter : IDisposable
         int originalQWeightBytes;
         int originalQZerosBytes;
         int originalScalesBytes;
-        if (format == Format.OldAWQFormat)
+        switch (format)
         {
-            var originalQWeightWidth = CeilDiv(width, 8);
-            var originalQZerosSize = CeilDiv(height, groupSize);
-
-            originalQWeightBytes = originalQWeightWidth * height * sizeof(int);
-            originalQZerosBytes = originalQWeightWidth * originalQZerosSize * sizeof(int);
-            originalScalesBytes = originalQZerosSize * width * sizeofHalf;
-        }
-        else
-        {
-            var originalScalesHeight = zerosSize * 8;
-            originalQWeightBytes = weightsSize * width * sizeof(int);
-            originalQZerosBytes = zerosSize * width * sizeof(int);
-            originalScalesBytes = originalScalesHeight * width * sizeofHalf;
+            case Format.v0:
+            {
+                var originalQWeightWidth = CeilDiv(width, 8);
+                var originalQZerosSize = CeilDiv(height, groupSize);
+                originalQWeightBytes = originalQWeightWidth * height * sizeof(int);
+                originalQZerosBytes = originalQWeightWidth * originalQZerosSize * sizeof(int);
+                originalScalesBytes = originalQZerosSize * width * sizeofHalf;
+            }
+            break;
+            case Format.v1:
+            {
+                var originalScalesHeight = zerosSize * 8;
+                originalQWeightBytes = weightsSize * width * sizeof(int);
+                originalQZerosBytes = zerosSize * width * sizeof(int);
+                originalScalesBytes = originalScalesHeight * width * sizeofHalf;
+            }
+            break;
+            default:
+                throw new FormatException("Format is not supported");
         }
 
         var qWeightTensor = dict[$"{layerName}.{weightName}.qweight"];
@@ -219,25 +232,33 @@ public class ModelConverter : IDisposable
         var scalesTensor = dict[$"{layerName}.{weightName}.scales"];
         var scales = scalesTensor.ReadBytes(originalScalesBytes);
 
-        if (format == Format.OldAWQFormat)
-        {
-            var q_weight_t = weightsSize * width;
-            var q_zeros_t = zerosSize * width;
-            var scales_t = scalesSize * width;
 
-            qweights = RepackQData(qweights, height, width, q_weight_t);
-            qzeros = RepackQData(qzeros, scalesSize, width, q_zeros_t);
-            scales = RepackScales(scales, scalesSize, width, scales_t);
-        }
-        else
+        switch (format)
         {
-            int orig_scales_height = zerosSize * 8;
-            ushort[] scales_t = new ushort[scalesSize * width];
-            for (int x = 0; x < width; x++)
-                for (int y = 0; y < scalesSize; y++)
-                    scales_t[x * scalesSize + y] = scales[x * orig_scales_height + y];
+            case Format.v0:
+            {
+                var q_weight_t = weightsSize * width;
+                var q_zeros_t = zerosSize * width;
+                var scales_t = scalesSize * width;
 
-            scales = MemoryMarshal.Cast<ushort, byte>(scales_t).ToArray();
+                qweights = RepackQData(qweights, height, width, q_weight_t);
+                qzeros = RepackQData(qzeros, scalesSize, width, q_zeros_t);
+                scales = RepackScales(scales, scalesSize, width, scales_t);
+            }
+            break;
+            case Format.v1:
+            {
+                int orig_scales_height = zerosSize * 8;
+                ushort[] scales_t = new ushort[scalesSize * width];
+                for (int x = 0; x < width; x++)
+                    for (int y = 0; y < scalesSize; y++)
+                        scales_t[x * scalesSize + y] = scales[x * orig_scales_height + y];
+
+                scales = MemoryMarshal.Cast<ushort, byte>(scales_t).ToArray();
+            }
+            break;
+            default:
+                throw new FormatException("Format is not supported");
         }
 
         using var writer = new BinaryWriter(outputStream, Encoding.UTF8, true);
@@ -302,6 +323,7 @@ public class ModelConverter : IDisposable
         {
             registerConstructor("torch._utils", "_rebuild_tensor", new TensorConstructor());
             registerConstructor("torch._utils", "_rebuild_tensor_v2", new TensorConstructor());
+            registerConstructor("collections", "OrderedDict", new OrderedDictConstructor());
         }
 
         private readonly ZipArchive archive;
@@ -324,6 +346,21 @@ public class ModelConverter : IDisposable
         {
             public object construct(object[] args) =>
                 new Tensor((ZipArchiveEntry)args[0]);
+        }
+
+        private class OrderedDict : Hashtable
+        {
+            public void __setstate__(Hashtable source)
+            {
+                foreach (DictionaryEntry entry in source)
+                    this.Add(entry.Key, entry.Value);
+            }
+        }
+
+        private class OrderedDictConstructor : IObjectConstructor
+        {
+            public object construct(object[] args) =>
+                new OrderedDict();
         }
     }
 
