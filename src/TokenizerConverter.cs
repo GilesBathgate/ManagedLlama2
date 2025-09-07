@@ -5,7 +5,7 @@ namespace libLlama2;
 
 public class TokenizerConverter : IDisposable
 {
-    private readonly Downloader downloader;
+    private readonly Downloader? downloader;
     private readonly string tokenizerPath;
 
     public TokenizerConverter(bool download) : this("tokenizer.spm", download)

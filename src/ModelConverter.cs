@@ -10,7 +10,7 @@ namespace libLlama2;
 
 public class ModelConverter : IDisposable
 {
-    private readonly Downloader downloader;
+    private readonly Downloader? downloader;
 
     private readonly List<string> modelPaths;
 
