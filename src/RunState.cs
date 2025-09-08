@@ -24,6 +24,8 @@ public class RunState
 
     public readonly CudaDeviceVariable<int> indices;
 
+    public CudaDeviceVariable<int>? constraints;
+
     public RunState(CudaContext cudaContext, ref Config config, int kvDim)
     {
         int CalculateMaxUsableSequence(Config config)
