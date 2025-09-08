@@ -19,6 +19,7 @@ add_library(Llama2 OBJECT
     rmsnorm_kernel.cu
     rope_kernel.cu
     sample_top_p_kernel.cu
+    sample_constrained_kernel.cu
     softmax_kernel.cu
     softmax_logits_kernel.cu
     sort_kernel.cu

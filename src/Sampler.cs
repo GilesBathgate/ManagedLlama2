@@ -10,6 +10,8 @@ public class Sampler : ISampler
 
     private readonly SoftmaxLogits softmax;
 
+    private readonly Constrain constrain;
+
     private readonly CumulativeSum cumulativeSum;
 
     private readonly SampleTopP sampleTopP;
@@ -32,6 +34,7 @@ public class Sampler : ISampler
         this.topP = topP;
         argmax = new Argmax(context);
         softmax = new SoftmaxLogits(context);
+        constrain = new Constrain(context);
         cumulativeSum = new CumulativeSum(context, config);
         sampleTopP = new SampleTopP(context);
         sort = new Sort(context, config);
