@@ -35,6 +35,9 @@
     <EmbeddedResource Include="$(BuildDir)\softmax_kernel.ptx">
       <LogicalName>softmax_kernel.ptx</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="$(BuildDir)\sample_constrained_kernel.ptx">
+      <LogicalName>sample_constrained_kernel.ptx</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="$(BuildDir)\softmax_logits_kernel.ptx">
       <LogicalName>softmax_logits_kernel.ptx</LogicalName>
     </EmbeddedResource>
