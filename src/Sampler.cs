@@ -50,6 +50,10 @@ public class Sampler : ISampler
         }
         else
         {
+            if (runstate.constraints is not null) {
+                constrain.Forward(runstate.logits, config.vocabSize, runstate.constraints);
+            }
+
             softmax.Forward(runstate.logits, config.vocabSize, temperature, runstate.indices);
 
             float threshold;
