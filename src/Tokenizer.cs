@@ -54,12 +54,18 @@ public partial class Tokenizer : ITokenizer
     [GeneratedRegex("^<0x([0-9A-F]{2})>$")]
     private static partial Regex EncodedByteRegex();
 
+    public string Decode(int token) =>
+        Decode(vocab[token]);
+
     public string Decode(int prev, int token)
     {
         var piece = vocab[token];
         // following BOS (1) token, sentencepiece decoder strips any leading whitespace (see PR #89)
-        piece = (prev == BOS && piece[0] == ' ') ? piece.TrimStart() : piece;
+        return Decode((prev == BOS && piece[0] == ' ') ? piece.TrimStart() : piece);
+    }
 
+    private string Decode(string piece)
+    {
         var match = EncodedByteRegex().Match(piece);
         if (match.Success)
         {
