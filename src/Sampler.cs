@@ -51,7 +51,7 @@ public class Sampler : ISampler
         else
         {
             if (runstate.constraints is not null) {
-                constrain.Forward(runstate.logits, config.vocabSize, runstate.constraints);
+                constrain.Forward(runstate.logits, config.vocabSize, runstate.constraints, true);
             }
 
             softmax.Forward(runstate.logits, config.vocabSize, temperature, runstate.indices);
