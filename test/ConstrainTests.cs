@@ -23,24 +23,24 @@ public class ConstrainTests : IDisposable
     public void Dispose() =>
         cudaContext.Dispose();
 
-    private Half[] Constrain(Half[] x, int[] constraint)
+    private Half[] Constrain(Half[] x, int[] constraint, bool allow)
     {
         var size = x.Length;
         var x1 = (CudaDeviceVariable<Half>)x;
         var c1 = (CudaDeviceVariable<int>)constraint;
 
-        kernel.Run(x1.DevicePointer, size, c1.DevicePointer, c1.Size, true);
+        kernel.Run(x1.DevicePointer, size, c1.DevicePointer, c1.Size, allow);
         return (Half[])x1;
     }
 
-    private Half[] Expected(Half[] logits, int[] constraint)
+    private Half[] Expected(Half[] logits, int[] constraint, bool allow)
     {
         var size = logits.Length;
         var constraintSet = new HashSet<int>(constraint);
 
         for (var i = 0; i < size; ++i)
         {
-            if (!constraintSet.Contains(i)) {
+            if (constraintSet.Contains(i) != allow) {
                 logits[i] = (Half)float.NegativeInfinity;
             }
         }
@@ -73,13 +73,31 @@ public class ConstrainTests : IDisposable
 
     [Theory]
     [MemberData(nameof(RandomData))]
-    public void Test_Constrain(Half[] x, int[] constraint)
+    public void Test_Constrain_AllowList(Half[] x, int[] constraint)
     {
         var actual_x = Copy(x);
-        var actual = Constrain(actual_x, constraint);
+        var actual = Constrain(actual_x, constraint, true);
 
         var expected_x = Copy(x);
-        var expected = Expected(expected_x, constraint);
+        var expected = Expected(expected_x, constraint, true);
+
+        Assert.Equal(expected.Length, actual.Length);
+
+        for (int i = 0; i < expected.Length; i++)
+        {
+            Assert.Equal(expected[i], actual[i]);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(RandomData))]
+    public void Test_Constrain_DisallowList(Half[] x, int[] constraint)
+    {
+        var actual_x = Copy(x);
+        var actual = Constrain(actual_x, constraint, false);
+
+        var expected_x = Copy(x);
+        var expected = Expected(expected_x, constraint, false);
 
         Assert.Equal(expected.Length, actual.Length);
 
