@@ -8,6 +8,11 @@ Based on [llama2.c](https://github.com/karpathy/llama2.c) and [llama_cu_awq](htt
 
 ## Build
 
+#### Install dependencies
+```
+sudo apt -y install dotnet-sdk-8.0 nvidia-cuda-toolkit cmake
+```
+#### Build from source
 ```
 git clone https://github.com/GilesBathgate/ManagedLlama2
 cd ManagedLlama2
