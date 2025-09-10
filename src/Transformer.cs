@@ -86,7 +86,7 @@ public class Transformer : ITransformer
         fileStream.Close();
     }
 
-    public IEnumerable<string> Generate(string prompt, int steps)
+    public IEnumerable<Token> Generate(string prompt, int steps)
     {
         var promptTokens = tokenizer.Encode(prompt, true);
 
@@ -106,12 +106,12 @@ public class Transformer : ITransformer
             if (token < 3) break;
 
             var piece = tokenizer.Decode(prev, token);
-            yield return piece;
+            yield return new Token(token, piece);
             prev = token;
         }
     }
 
-    public IEnumerable<string> Chat(string system_prompt, IEnumerable<string> userInput)
+    public IEnumerable<Token> Chat(string system_prompt, IEnumerable<string> userInput)
     {
         var pos = 0;
         var prev = 0;
@@ -138,11 +138,11 @@ public class Transformer : ITransformer
                     if (token < 3) break;
 
                     var piece = tokenizer.Decode(prev, token);
-                    yield return piece;
+                    yield return new Token(token, piece);
                 }
                 prev = token;
             }
-            yield return "\n";
+            yield return new Token(0, Environment.NewLine);
             ++pos;
         }
     }

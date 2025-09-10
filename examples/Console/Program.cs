@@ -13,12 +13,15 @@ If a question does not make any sense, or is not factually coherent, explain why
     {
         if (args.Length < 2)
         {
-            Console.WriteLine("Usage: Program.exe <model.bin> <tokenizer.bin>");
+            Console.WriteLine("Usage: Program.exe <model.bin> <tokenizer.bin> [--color]");
             return;
         }
 
         var modelPath = args[0];
         var tokenizerPath = args[1];
+
+        var useColor = args.Length > 2 && args[2].Contains("color");
+        IColorizer colorizer = useColor ? new AnsiColorizer() : new InertColorizer();
 
         var transformer = new Transformer(modelPath, tokenizerPath);
 
@@ -34,8 +37,8 @@ If a question does not make any sense, or is not factually coherent, explain why
         var tokens = transformer.Chat(systemPrompt, ReadInput());
 
         foreach (var token in tokens)
-            Console.Write(token);
+            Console.Write(colorizer.Colorize(token));
 
-        Console.WriteLine();
+        Console.WriteLine(colorizer.EmptyColor);
     }
 }
