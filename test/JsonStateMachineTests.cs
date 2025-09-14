@@ -25,6 +25,22 @@ public class JsonStateMachineTests
     [InlineData("{\"a\":1, \"b\":\"hello\", \"c\":true, \"d\":null}")]
     [InlineData("[1, [2, 3], {\"a\": 4}]")]
     [InlineData("{\"a\": {}}")]
+    [InlineData("{\"a\": \"\\\"\"}")]
+    [InlineData("{\"a\": \"\\\\\"}")]
+    [InlineData("{\"a\": \"\\/\"}")]
+    [InlineData("{\"a\": \"\\b\"}")]
+    [InlineData("{\"a\": \"\\f\"}")]
+    [InlineData("{\"a\": \"\\n\"}")]
+    [InlineData("{\"a\": \"\\r\"}")]
+    [InlineData("{\"a\": \"\\t\"}")]
+    [InlineData("{\"\\\"\":\"b\"}")]
+    [InlineData("{\"\\\\\":\"b\"}")]
+    [InlineData("{\"\\/\":\"b\"}")]
+    [InlineData("{\"\\b\":\"b\"}")]
+    [InlineData("{\"\\f\":\"b\"}")]
+    [InlineData("{\"\\n\":\"b\"}")]
+    [InlineData("{\"\\r\":\"b\"}")]
+    [InlineData("{\"\\t\":\"b\"}")]
     public void TestValidJson(string json)
     {
         var sm = new JsonStateMachine();
@@ -47,6 +63,7 @@ public class JsonStateMachineTests
     [InlineData("1, 2, 3")]
     [InlineData("{\"my\nkey\":\"value\"}")]
     [InlineData("{\"key\":\"value\n\"}")]
+    [InlineData("{\"a\": \"\\z\"}")]
     public void TestInvalidJson(string json)
     {
         var sm = new JsonStateMachine();

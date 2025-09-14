@@ -11,6 +11,7 @@ public class JsonStateMachine
         InArray,
         InString,
         InStringKey,
+        InStringEscaped,
         InNumber,
         InBoolean,
         InNull,
@@ -103,6 +104,7 @@ public class JsonStateMachine
             case JsonState.ExpectingCommaOrEnd: return HandleExpectingCommaOrEnd(c);
             case JsonState.InString: return HandleInString(c);
             case JsonState.InStringKey: return HandleInStringKey(c);
+            case JsonState.InStringEscaped: return HandleInStringEscaped(c);
             case JsonState.InNumber: return HandleInNumber(c);
             case JsonState.InBoolean: return HandleInBoolean(c);
             case JsonState.InNull: return HandleInNull(c);
@@ -212,7 +214,8 @@ public class JsonStateMachine
 
     private bool HandleInString(char c)
     {
-        if (c == '"') ChangeState(JsonState.ExpectingCommaOrEnd);
+        if (c == '\\') { context.Push(State); ChangeState(JsonState.InStringEscaped); }
+        else if (c == '"') ChangeState(JsonState.ExpectingCommaOrEnd);
         else if (c == '\n' || c == '\r') ChangeState(JsonState.Error);
         else buffer.Append(c);
         return true;
@@ -220,9 +223,24 @@ public class JsonStateMachine
 
     private bool HandleInStringKey(char c)
     {
-        if (c == '"') ChangeState(JsonState.ExpectingColon);
+        if (c == '\\') { context.Push(State); ChangeState(JsonState.InStringEscaped); }
+        else if (c == '"') ChangeState(JsonState.ExpectingColon);
         else if (c == '\n' || c == '\r') ChangeState(JsonState.Error);
         else buffer.Append(c);
+        return true;
+    }
+
+    private bool HandleInStringEscaped(char c)
+    {
+        if ("\"\\/bfnrt".Contains(c))
+        {
+            buffer.Append(c);
+            ChangeState(context.Pop());
+        }
+        else
+        {
+            ChangeState(JsonState.Error);
+        }
         return true;
     }
 

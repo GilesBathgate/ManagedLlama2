@@ -161,6 +161,10 @@ public class ConstraintGenerator
             case JsonState.ExpectingFirstValue:
                 contexts.Add(JsonState.InArray);
                 break;
+            case JsonState.InStringEscaped:
+                contexts.Add(JsonState.InString);
+                contexts.Add(JsonState.InStringKey);
+                break;
             default:
                 contexts.Add(default);
                 break;
