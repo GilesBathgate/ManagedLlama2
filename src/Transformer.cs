@@ -39,6 +39,10 @@ public class Transformer : ITransformer
 
     private readonly ISampler sampler;
 
+    private readonly JsonStateMachine stateMachine;
+
+    private readonly ConstraintGenerator constraintGenerator;
+
     public Transformer(string modelPath, string tokenizerPath = "tokenizer.bin", float temperature = 0.5f, float topP = 0.9f) :
         this(File.OpenRead(modelPath), tokenizerPath, temperature, topP)
     { }
@@ -82,6 +86,10 @@ public class Transformer : ITransformer
         matVecSwiGLU = new MatVecSwiGLU(cudaContext, config);
 
         matVec = new MatVec(cudaContext, config);
+
+        stateMachine = new JsonStateMachine();
+
+        constraintGenerator = new ConstraintGenerator(tokenizer, config.vocabSize);
 
         fileStream.Close();
     }
@@ -131,16 +139,38 @@ public class Transformer : ITransformer
 
                 var generateToken = nextPos >= userPos;
 
-                var token = sampler.Sample(nextPos, generateToken);
+                runstate.constraints?.Dispose();
+                runstate.constraints = null;
+                if (generateToken)
+                {
+                    var (allow, constraint) = constraintGenerator.ConstrainedTokens(stateMachine);
+                    if (constraint.Length > 0)
+                    {
+                        runstate.constraints = new CudaDeviceVariable<int>(constraint.Length);
+                        runstate.constraints.CopyToDevice(constraint);
+                        runstate.constraintIsAllow = allow;
+                    }
+                }
+
+                var tokenId = sampler.Sample(nextPos, generateToken);
 
                 if (generateToken)
                 {
-                    if (token < 3) break;
 
-                    var piece = tokenizer.Decode(prev, token);
-                    yield return new Token(token, piece);
+                    if (tokenId < 3) break;
+
+                    var piece = tokenizer.Decode(prev, tokenId);
+                    var token = new Token(tokenId, piece);
+                    yield return token;
+
+                    stateMachine.Process(token);
+                    if (stateMachine.State == JsonStateMachine.JsonState.Complete)
+                    {
+                        stateMachine.Reset();
+                        break;
+                    }
                 }
-                prev = token;
+                prev = tokenId;
             }
             yield return new Token(0, Environment.NewLine);
             ++pos;

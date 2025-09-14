@@ -7,12 +7,10 @@ namespace libLlama2.UnitTests;
 public class JsonStateMachineTests
 {
     private readonly Mock<ITokenizer> tokenizerMock;
-    private Config config;
 
     public JsonStateMachineTests()
     {
         tokenizerMock = new Mock<ITokenizer>();
-        config = new Config { vocabSize = 100 };
     }
 
     [Theory]
@@ -29,7 +27,7 @@ public class JsonStateMachineTests
     [InlineData("{\"a\": {}}")]
     public void TestValidJson(string json)
     {
-        var sm = new JsonStateMachine(tokenizerMock.Object, config);
+        var sm = new JsonStateMachine();
         sm.Process(json);
         sm.Complete();
         Assert.Equal(JsonState.Complete, sm.State);
@@ -51,7 +49,7 @@ public class JsonStateMachineTests
     [InlineData("{\"key\":\"value\n\"}")]
     public void TestInvalidJson(string json)
     {
-        var sm = new JsonStateMachine(tokenizerMock.Object, config);
+        var sm = new JsonStateMachine();
         sm.Process(json);
         sm.Complete();
         Assert.Equal(JsonState.Error, sm.State);
@@ -69,7 +67,7 @@ public class JsonStateMachineTests
     [InlineData("[true,", JsonState.ExpectingValue)]
     public void TestIncompleteJson(string json, JsonState expected)
     {
-        var sm = new JsonStateMachine(tokenizerMock.Object, config);
+        var sm = new JsonStateMachine();
         sm.Process(json);
         Assert.Equal(expected, sm.State);
     }
@@ -79,7 +77,7 @@ public class JsonStateMachineTests
     {
         var json = "{\"key\":\"value\"}";
         var states = new List<JsonState>();
-        var sm = new JsonStateMachine(tokenizerMock.Object, config);
+        var sm = new JsonStateMachine();
         sm.StateChanged += states.Add;
         sm.Process(json);
         sm.Complete();
@@ -135,14 +133,15 @@ public class JsonStateMachineTests
     [MemberData(nameof(PrecomputationOverloadTestData))]
     public void TestPrecomputation_WithFixedContext(JsonState context, JsonState state, Token[] allowedTokens, Token[] disallowedTokens)
     {
-        var sm = new JsonStateMachine(tokenizerMock.Object, config);
+        var sm = new JsonStateMachine();
         var allTokens = allowedTokens.Concat(disallowedTokens).ToList();
-        config.vocabSize = allTokens.Count;
+        var precomputed = It.IsAny<Dictionary<(JsonState, JsonState), ConstraintGenerator.Constraint>>();
+        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Count, precomputed);
 
         foreach (var token in allTokens)
             tokenizerMock.Setup(t => t.Decode(token.Id)).Returns(token.Value);
 
-        var validTokens = sm.PrecomputeValidTokens(context);
+        var validTokens = generator.PrecomputeValidTokens(context);
         var computedAllowedTokens = validTokens[state];
 
         foreach (var token in allowedTokens)
@@ -165,14 +164,15 @@ public class JsonStateMachineTests
         var closeBraceToken = new Token(5, "}");
 
         var allTokens = new[] { keyToken, colonToken, trueToken, falseToken, openBraceToken, closeBraceToken };
-        config.vocabSize = allTokens.Length;
         foreach (var token in allTokens)
             tokenizerMock.Setup(t => t.Decode(token.Id)).Returns(token.Value);
 
-        var sm = new JsonStateMachine(tokenizerMock.Object, config);
+        var precomputed = It.IsAny<Dictionary<(JsonState, JsonState), ConstraintGenerator.Constraint>>();
+        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length, precomputed);
+        var sm = new JsonStateMachine();
 
         // 2. Precompute the lookup table of valid next tokens
-        var validTokensLookup = sm.PrecomputeValidTokens();
+        var validTokensLookup = generator.PrecomputeValidTokens();
 
         // 3. Start of generation: LLM is prompted to produce a JSON object. It emits "{"
         sm.Process("{");
@@ -231,5 +231,37 @@ public class JsonStateMachineTests
         // 12. Final state should be Complete
         Assert.Equal(JsonState.Complete, sm.State);
         Assert.Equal(default, sm.CurrentContext);
+    }
+
+    [Fact]
+    public void TestPrecomputation_ConstrainedTokens_UsesDisallowedSet_WhenSmaller()
+    {
+        // Arrange
+        var invalidToken = new Token(0, "\n"); // Newline is invalid in a string literal
+        var validToken1 = new Token(1, "a");
+        var validToken2 = new Token(2, "b");
+        var validToken3 = new Token(3, "c");
+        var validToken4 = new Token(4, "\""); // Quote is valid, it ends the string
+
+        var allTokens = new[] { invalidToken, validToken1, validToken2, validToken3, validToken4 };
+        foreach (var token in allTokens)
+            tokenizerMock.Setup(t => t.Decode(token.Id)).Returns(token.Value);
+
+        // We are in a string, inside an array context
+        var precomputed = It.IsAny<Dictionary<(JsonState, JsonState), ConstraintGenerator.Constraint>>();
+        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length, precomputed);
+
+        // Use reflection to get the precomputed tokens
+        var precomputedConstrains = generator.PrecomputeConstraints();
+
+        var key = (JsonState.InString, JsonState.InArray);
+        var constraint = precomputedConstrains[key];
+
+        // Assert
+        // The only invalid token is \n. The other 4 are valid.
+        // The new implementation should store the 1 invalid token.
+        Assert.False(constraint.Allowed); // It should store the disallowed set
+        Assert.Equal(1, constraint.Tokens.Count);
+        Assert.Contains(invalidToken, constraint.Tokens);
     }
 }

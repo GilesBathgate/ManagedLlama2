@@ -24,10 +24,6 @@ public class JsonStateMachine
         Error
     }
 
-    private readonly Config config;
-
-    private readonly ITokenizer tokenizer;
-
     public JsonState State { get; private set; } = JsonState.Initial;
 
     public JsonState CurrentContext => context.Count > 0 ? context.Peek() : default;
@@ -40,22 +36,14 @@ public class JsonStateMachine
 
     public event StateChangedHandler? StateChanged;
 
-    private IDictionary<(JsonState, JsonState), ISet<Token>> precomputedValidTokens;
-
-    public JsonStateMachine(ITokenizer tokenizer, Config config)
+    public JsonStateMachine()
     {
-        this.tokenizer = tokenizer;
-        this.config = config;
-        precomputedValidTokens = PrecomputeValidTokens();
     }
 
-    internal JsonStateMachine(ITokenizer tokenizer, Config config, JsonState initialState, JsonState initialContextState)
+    public JsonStateMachine(ITokenizer tokenizer, JsonState initialState, JsonState initialContextState)
     {
-        this.tokenizer = tokenizer;
-        this.config = config;
         this.State = initialState;
         this.context = new Stack<JsonState>([initialContextState]);
-        precomputedValidTokens = new Dictionary<(JsonState, JsonState), ISet<Token>>();
     }
 
     public void Reset()
@@ -63,12 +51,6 @@ public class JsonStateMachine
         context.Clear();
         buffer.Clear();
         State = JsonState.Initial;
-    }
-
-    public int[] ValidTokens()
-    {
-        var key = (State, CurrentContext);
-        return precomputedValidTokens[key].Select(x => x.Id).ToArray();
     }
 
     public void Process(Token token) =>
@@ -282,92 +264,6 @@ public class JsonStateMachine
         if (State == newState) return;
         State = newState;
         StateChanged?.Invoke(newState);
-    }
-
-    private IEnumerable<Token> AllTokens() =>
-        Enumerable.Range(0, config.vocabSize).Select(x => new Token(x, tokenizer.Decode(x)));
-
-    private bool IsTokenValidForState(JsonState state, JsonState context, Token token)
-    {
-        if (string.IsNullOrEmpty(token.Value)) return false;
-
-        var tempMachine = new JsonStateMachine(tokenizer, config, state, context);
-        tempMachine.Process(token.Value);
-        return tempMachine.State != JsonState.Error;
-    }
-
-    public IDictionary<JsonState, ISet<Token>> PrecomputeValidTokens(JsonState context)
-    {
-        var validTokens = new Dictionary<JsonState, ISet<Token>>();
-        foreach (JsonState state in Enum.GetValues(typeof(JsonState)))
-        {
-            var stateValidTokens = new HashSet<Token>();
-            foreach (var token in AllTokens())
-            {
-                if (IsTokenValidForState(state, context, token))
-                    stateValidTokens.Add(token);
-            }
-            validTokens[state] = stateValidTokens;
-        }
-        return validTokens;
-    }
-
-    public IDictionary<(JsonState, JsonState), ISet<Token>> PrecomputeValidTokens()
-    {
-        var validTokens = new Dictionary<(JsonState, JsonState), ISet<Token>>();
-        foreach (JsonState state in Enum.GetValues(typeof(JsonState)))
-        {
-            var contexts = PossibleContextsForState(state);
-            foreach (var contextState in contexts)
-            {
-                var key = (state, contextState);
-                var stateValidTokens = new HashSet<Token>();
-
-                foreach (var token in AllTokens())
-                {
-                    if (IsTokenValidForState(state, contextState, token))
-                    {
-                        stateValidTokens.Add(token);
-                    }
-                }
-                validTokens[key] = stateValidTokens;
-            }
-        }
-        return validTokens;
-    }
-
-    private IList<JsonState> PossibleContextsForState(JsonState state)
-    {
-        var contexts = new List<JsonState>();
-        switch (state)
-        {
-            case JsonState.ExpectingCommaOrEnd:
-            case JsonState.InString:
-            case JsonState.InNumber:
-            case JsonState.InBoolean:
-            case JsonState.InNull:
-                contexts.Add(JsonState.InObject);
-                contexts.Add(JsonState.InArray);
-                break;
-            case JsonState.ExpectingKey:
-            case JsonState.ExpectingColon:
-            case JsonState.InStringKey:
-            case JsonState.ExpectingFirstKey:
-                contexts.Add(JsonState.InObject);
-                break;
-            case JsonState.ExpectingValue:
-                contexts.Add(JsonState.InObject);
-                contexts.Add(JsonState.InArray);
-                contexts.Add(default);
-                break;
-            case JsonState.ExpectingFirstValue:
-                contexts.Add(JsonState.InArray);
-                break;
-            default:
-                contexts.Add(default);
-                break;
-        }
-        return contexts;
     }
 
 }

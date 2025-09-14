@@ -25,6 +25,7 @@ public class RunState
     public readonly CudaDeviceVariable<int> indices;
 
     public CudaDeviceVariable<int>? constraints;
+    public bool constraintIsAllow;
 
     public RunState(CudaContext cudaContext, ref Config config, int kvDim)
     {
