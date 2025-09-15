@@ -63,7 +63,11 @@ public class Transformer : ITransformer
 
         tokenizer = new Tokenizer(tokenizerPath, config.vocabSize);
 
-        runstate = new RunState(cudaContext, ref config, kvDim);
+        stateMachine = new JsonStateMachine();
+
+        constraintGenerator = new ConstraintGenerator(tokenizer, config.vocabSize);
+
+        runstate = new RunState(cudaContext, ref config, kvDim, constraintGenerator.AllConstraints);
 
         sampler = new Sampler(cudaContext, config, runstate, temperature, topP);
 
@@ -86,10 +90,6 @@ public class Transformer : ITransformer
         matVecSwiGLU = new MatVecSwiGLU(cudaContext, config);
 
         matVec = new MatVec(cudaContext, config);
-
-        stateMachine = new JsonStateMachine();
-
-        constraintGenerator = new ConstraintGenerator(tokenizer, config.vocabSize);
 
         fileStream.Close();
     }
@@ -139,18 +139,7 @@ public class Transformer : ITransformer
 
                 var generateToken = nextPos >= userPos;
 
-                runstate.constraints?.Dispose();
-                runstate.constraints = null;
-                if (generateToken)
-                {
-                    var (allow, constraint) = constraintGenerator.ConstrainedTokens(stateMachine);
-                    if (constraint.Length > 0)
-                    {
-                        runstate.constraints = new CudaDeviceVariable<int>(constraint.Length);
-                        runstate.constraints.CopyToDevice(constraint);
-                        runstate.constraintIsAllow = allow;
-                    }
-                }
+                runstate.constraint = generateToken ? constraintGenerator.CurrentConstraint(stateMachine) : null;
 
                 var tokenId = sampler.Sample(nextPos, generateToken);
 

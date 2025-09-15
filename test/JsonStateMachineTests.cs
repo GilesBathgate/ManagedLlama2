@@ -152,7 +152,7 @@ public class JsonStateMachineTests
     {
         var sm = new JsonStateMachine();
         var allTokens = allowedTokens.Concat(disallowedTokens).ToList();
-        var precomputed = It.IsAny<Dictionary<(JsonState, JsonState), ConstraintGenerator.Constraint>>();
+        var precomputed = It.IsAny<Dictionary<(JsonState, JsonState), Constraint>>();
         var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Count, precomputed);
 
         foreach (var token in allTokens)
@@ -184,7 +184,7 @@ public class JsonStateMachineTests
         foreach (var token in allTokens)
             tokenizerMock.Setup(t => t.Decode(token.Id)).Returns(token.Value);
 
-        var precomputed = It.IsAny<Dictionary<(JsonState, JsonState), ConstraintGenerator.Constraint>>();
+        var precomputed = It.IsAny<Dictionary<(JsonState, JsonState), Constraint>>();
         var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length, precomputed);
         var sm = new JsonStateMachine();
 
@@ -265,20 +265,20 @@ public class JsonStateMachineTests
             tokenizerMock.Setup(t => t.Decode(token.Id)).Returns(token.Value);
 
         // We are in a string, inside an array context
-        var precomputed = It.IsAny<Dictionary<(JsonState, JsonState), ConstraintGenerator.Constraint>>();
-        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length, precomputed);
+        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length);
 
         // Use reflection to get the precomputed tokens
-        var precomputedConstrains = generator.PrecomputeConstraints();
+        var sm = new JsonStateMachine(JsonState.InString, JsonState.InArray);
+        var constraint = generator.CurrentConstraint(sm);
+        Assert.NotNull(constraint);
 
-        var key = (JsonState.InString, JsonState.InArray);
-        var constraint = precomputedConstrains[key];
+        var constraintTokens = generator.CurrentConstraintTokens(constraint);
 
         // Assert
         // The only invalid token is \n. The other 4 are valid.
         // The new implementation should store the 1 invalid token.
-        Assert.False(constraint.Allowed); // It should store the disallowed set
-        Assert.Equal(1, constraint.Tokens.Count);
-        Assert.Contains(invalidToken, constraint.Tokens);
+        Assert.False(constraint?.Allowed); // It should store the disallowed set
+        Assert.Equal(1, constraintTokens.Count);
+        Assert.Contains(invalidToken, constraintTokens);
     }
 }

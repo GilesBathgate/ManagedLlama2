@@ -41,7 +41,7 @@ public class JsonStateMachine
     {
     }
 
-    public JsonStateMachine(ITokenizer tokenizer, JsonState initialState, JsonState initialContextState)
+    public JsonStateMachine(JsonState initialState, JsonState initialContextState)
     {
         this.State = initialState;
         this.context = new Stack<JsonState>([initialContextState]);

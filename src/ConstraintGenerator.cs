@@ -4,37 +4,29 @@ using JsonState = JsonStateMachine.JsonState;
 
 public class ConstraintGenerator
 {
-    public readonly struct Constraint
-    {
-        public bool Allowed { get; }
-
-        public ISet<Token> Tokens { get; }
-
-        public Constraint(bool allowed, ISet<Token> tokens)
-        {
-            Allowed = allowed;
-            Tokens = tokens;
-        }
-    }
-
     private int vocabSize;
 
     private ITokenizer tokenizer;
 
-    private IDictionary<(JsonState, JsonState), Constraint> precomputedConstraits;
+    private List<Token> constraintTokens = new();
 
-    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize)
+    private IDictionary<(JsonState, JsonState), Constraint> constraints;
+
+    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize) : this(tokenizer, vocabSize, new Dictionary<(JsonState, JsonState), Constraint>())
     {
-        this.tokenizer = tokenizer;
-        this.vocabSize = vocabSize;
-        precomputedConstraits = PrecomputeConstraints();
+        PrecomputeConstraints();
     }
 
-    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize, IDictionary<(JsonState, JsonState), Constraint> precomputed)
+    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize, IDictionary<(JsonState, JsonState), Constraint> constraints)
     {
         this.tokenizer = tokenizer;
         this.vocabSize = vocabSize;
-        precomputedConstraits = precomputed;
+        this.constraints = constraints;
+    }
+
+    public IEnumerable<int> AllConstraints
+    {
+        get => constraintTokens.Select(x => x.Id);
     }
 
     private IEnumerable<Token> AllTokens() =>
@@ -44,11 +36,12 @@ public class ConstraintGenerator
     {
         if (string.IsNullOrEmpty(token.Value)) return false;
 
-        var tempMachine = new JsonStateMachine(tokenizer, state, context);
+        var tempMachine = new JsonStateMachine(state, context);
         tempMachine.Process(token.Value);
         return tempMachine.State != JsonState.Error;
     }
 
+    [Obsolete]
     public IDictionary<JsonState, ISet<Token>> PrecomputeValidTokens(JsonState context)
     {
         var validTokens = new Dictionary<JsonState, ISet<Token>>();
@@ -65,6 +58,7 @@ public class ConstraintGenerator
         return validTokens;
     }
 
+    [Obsolete]
     public IDictionary<(JsonState, JsonState), ISet<Token>> PrecomputeValidTokens()
     {
         var validTokens = new Dictionary<(JsonState, JsonState), ISet<Token>>();
@@ -89,17 +83,23 @@ public class ConstraintGenerator
         return validTokens;
     }
 
-    public (bool allow, int[] tokens) ConstrainedTokens(JsonStateMachine stateMachine)
+    public Constraint? CurrentConstraint(JsonStateMachine stateMachine)
     {
         var key = (stateMachine.State, stateMachine.CurrentContext);
-        var constraint = precomputedConstraits[key];
-        return (constraint.Allowed, constraint.Tokens.Select(x => x.Id).ToArray());
+        if (constraints.TryGetValue(key, out var constraint))
+            return constraint;
+
+        return null;
     }
 
-    public IDictionary<(JsonState, JsonState), Constraint> PrecomputeConstraints()
+    [Obsolete]
+    public IList<Token> CurrentConstraintTokens(Constraint constraint)
     {
-        var result = new Dictionary<(JsonState, JsonState), Constraint>();
+        return constraintTokens.Skip(constraint.Index).Take(constraint.Size).ToList();
+    }
 
+    private void PrecomputeConstraints()
+    {
         foreach (JsonState state in Enum.GetValues(typeof(JsonState)))
         {
             var contexts = PossibleContextsForState(state);
@@ -121,17 +121,19 @@ public class ConstraintGenerator
                     }
                 }
 
+
                 if (stateValidTokens.Count <= stateInvalidTokens.Count)
                 {
-                    result[key] = new Constraint(true, stateValidTokens);
+                    constraints[key] = new Constraint(true, constraintTokens.Count, stateValidTokens.Count);
+                    constraintTokens.AddRange(stateValidTokens);
                 }
                 else
                 {
-                    result[key] = new Constraint(false, stateInvalidTokens);
+                    constraints[key] = new Constraint(false, constraintTokens.Count, stateInvalidTokens.Count);
+                    constraintTokens.AddRange(stateInvalidTokens);
                 }
             }
         }
-        return result;
     }
 
     private IList<JsonState> PossibleContextsForState(JsonState state)

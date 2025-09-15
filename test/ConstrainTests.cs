@@ -29,7 +29,7 @@ public class ConstrainTests : IDisposable
         var x1 = (CudaDeviceVariable<Half>)x;
         var c1 = (CudaDeviceVariable<int>)constraint;
 
-        kernel.Run(x1.DevicePointer, size, c1.DevicePointer, c1.Size, allow);
+        kernel.Run(x1.DevicePointer, size, c1.DevicePointer, 0, c1.Size, allow);
         return (Half[])x1;
     }
 
