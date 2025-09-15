@@ -41,48 +41,6 @@ public class ConstraintGenerator
         return tempMachine.State != JsonState.Error;
     }
 
-    [Obsolete]
-    public IDictionary<JsonState, ISet<Token>> PrecomputeValidTokens(JsonState context)
-    {
-        var validTokens = new Dictionary<JsonState, ISet<Token>>();
-        foreach (JsonState state in Enum.GetValues(typeof(JsonState)))
-        {
-            var stateValidTokens = new HashSet<Token>();
-            foreach (var token in AllTokens())
-            {
-                if (IsTokenValidForState(state, context, token))
-                    stateValidTokens.Add(token);
-            }
-            validTokens[state] = stateValidTokens;
-        }
-        return validTokens;
-    }
-
-    [Obsolete]
-    public IDictionary<(JsonState, JsonState), ISet<Token>> PrecomputeValidTokens()
-    {
-        var validTokens = new Dictionary<(JsonState, JsonState), ISet<Token>>();
-        foreach (JsonState state in Enum.GetValues(typeof(JsonState)))
-        {
-            var contexts = PossibleContextsForState(state);
-            foreach (var contextState in contexts)
-            {
-                var key = (state, contextState);
-                var stateValidTokens = new HashSet<Token>();
-
-                foreach (var token in AllTokens())
-                {
-                    if (IsTokenValidForState(state, contextState, token))
-                    {
-                        stateValidTokens.Add(token);
-                    }
-                }
-                validTokens[key] = stateValidTokens;
-            }
-        }
-        return validTokens;
-    }
-
     public Constraint? CurrentConstraint(JsonStateMachine stateMachine)
     {
         var key = (stateMachine.State, stateMachine.CurrentContext);
@@ -90,12 +48,6 @@ public class ConstraintGenerator
             return constraint;
 
         return null;
-    }
-
-    [Obsolete]
-    public IList<Token> CurrentConstraintTokens(Constraint constraint)
-    {
-        return constraintTokens.Skip(constraint.Index).Take(constraint.Size).ToList();
     }
 
     private void PrecomputeConstraints()
