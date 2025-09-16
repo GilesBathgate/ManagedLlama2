@@ -1,4 +1,5 @@
 using JsonState = libLlama2.JsonStateMachine.JsonState;
+using JsonTransition = libLlama2.JsonStateMachine.JsonTransition;
 
 namespace libLlama2.UnitTests;
 
@@ -77,7 +78,10 @@ public class JsonStateMachineTests
     {
         var sm = new JsonStateMachine();
         sm.Process(json);
-        Assert.Equal(expected, sm.Transition.State);
+
+        var transition = sm.Transition as JsonTransition;
+        Assert.NotNull(transition);
+        Assert.Equal(expected, transition.State);
     }
 
     [Fact]

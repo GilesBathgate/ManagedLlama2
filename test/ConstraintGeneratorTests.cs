@@ -122,8 +122,10 @@ public class ConstraintGeneratorTests
         sm.Process("{");
 
         // 4. Verify the new state and get the list of valid next tokens
-        Assert.Equal(JsonState.ExpectingFirstKey, sm.Transition.State);
-        Assert.Equal(JsonState.InObject, sm.Transition.Context);
+        var transition = sm.Transition as JsonTransition;
+        Assert.NotNull(transition);
+        Assert.Equal(JsonState.ExpectingFirstKey, transition.State);
+        Assert.Equal(JsonState.InObject, transition.Context);
         var nextTokenIds = getValidTokenIds();
 
         // A key or a closing brace are valid next tokens
@@ -135,8 +137,10 @@ public class ConstraintGeneratorTests
         sm.Process(keyToken.Value);
 
         // 6. Verify the new state and get the next constraints
-        Assert.Equal(JsonState.ExpectingColon, sm.Transition.State);
-        Assert.Equal(JsonState.InObject, sm.Transition.Context);
+        transition = sm.Transition as JsonTransition;
+        Assert.NotNull(transition);
+        Assert.Equal(JsonState.ExpectingColon, transition.State);
+        Assert.Equal(JsonState.InObject, transition.Context);
         nextTokenIds = getValidTokenIds();
 
         // Only a colon is valid
@@ -147,8 +151,10 @@ public class ConstraintGeneratorTests
         sm.Process(colonToken.Value);
 
         // 8. Verify new state and constraints
-        Assert.Equal(JsonState.ExpectingValue, sm.Transition.State);
-        Assert.Equal(JsonState.InObject, sm.Transition.Context);
+        transition = sm.Transition as JsonTransition;
+        Assert.NotNull(transition);
+        Assert.Equal(JsonState.ExpectingValue, transition.State);
+        Assert.Equal(JsonState.InObject, transition.Context);
         nextTokenIds = getValidTokenIds();
 
         // A value (like true/false) is valid. A string is also a valid value.
@@ -161,8 +167,10 @@ public class ConstraintGeneratorTests
         sm.Process(trueToken.Value);
 
         // 10. Verify new state and constraints
-        Assert.Equal(JsonState.ExpectingCommaOrEnd, sm.Transition.State);
-        Assert.Equal(JsonState.InObject, sm.Transition.Context);
+        transition = sm.Transition as JsonTransition;
+        Assert.NotNull(transition);
+        Assert.Equal(JsonState.ExpectingCommaOrEnd, transition.State);
+        Assert.Equal(JsonState.InObject, transition.Context);
         nextTokenIds = getValidTokenIds();
 
         // A closing brace is valid
@@ -173,8 +181,10 @@ public class ConstraintGeneratorTests
         sm.Process(closeBraceToken.Value);
 
         // 12. Final state should be Complete
-        Assert.Equal(JsonState.Complete, sm.Transition.State);
-        Assert.Equal(default, sm.Transition.Context);
+        transition = sm.Transition as JsonTransition;
+        Assert.NotNull(transition);
+        Assert.Equal(JsonState.Complete, transition.State);
+        Assert.Equal(default, transition.Context);
     }
 
     [Fact]

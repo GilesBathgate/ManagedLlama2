@@ -1,7 +1,5 @@
 namespace libLlama2;
 
-using JsonTransition = JsonStateMachine.JsonTransition;
-
 public class ConstraintGenerator
 {
     private int vocabSize;
@@ -10,14 +8,14 @@ public class ConstraintGenerator
 
     private List<Token> constraintTokens = new();
 
-    private IDictionary<JsonTransition, Constraint> constraints;
+    private IDictionary<ITransition, Constraint> constraints;
 
-    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize, JsonStateMachine stateMachine) : this(tokenizer, vocabSize, new Dictionary<JsonTransition, Constraint>())
+    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize, IStateMachine stateMachine) : this(tokenizer, vocabSize, new Dictionary<ITransition, Constraint>())
     {
         PrecomputeConstraints(stateMachine);
     }
 
-    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize, IDictionary<JsonTransition, Constraint> constraints)
+    private ConstraintGenerator(ITokenizer tokenizer, int vocabSize, IDictionary<ITransition, Constraint> constraints)
     {
         this.tokenizer = tokenizer;
         this.vocabSize = vocabSize;
@@ -29,7 +27,7 @@ public class ConstraintGenerator
         get => constraintTokens.Select(x => x.Id);
     }
 
-    public Constraint? CurrentConstraint(JsonStateMachine stateMachine)
+    public Constraint? CurrentConstraint(IStateMachine stateMachine)
     {
         if (constraints.TryGetValue(stateMachine.Transition, out var constraint))
             return constraint;
@@ -40,16 +38,7 @@ public class ConstraintGenerator
     private IEnumerable<Token> AllTokens() =>
         Enumerable.Range(0, vocabSize).Select(x => new Token(x, tokenizer.Decode(x)));
 
-    private bool IsTokenValidForTransition(JsonTransition transition, Token token)
-    {
-        if (string.IsNullOrEmpty(token.Value)) return false;
-
-        var tempMachine = new JsonStateMachine(transition);
-        tempMachine.Process(token.Value);
-        return tempMachine.IsValid;
-    }
-
-    private void PrecomputeConstraints(JsonStateMachine stateMachine)
+    private void PrecomputeConstraints(IStateMachine stateMachine)
     {
         foreach (var transition in stateMachine.PossibleTransitions())
         {
@@ -57,14 +46,14 @@ public class ConstraintGenerator
         }
     }
 
-    private void PrecomputeConstraints(JsonTransition transition)
+    private void PrecomputeConstraints(ITransition transition)
     {
         var stateValidTokens = new HashSet<Token>();
         var stateInvalidTokens = new HashSet<Token>();
 
         foreach (var token in AllTokens())
         {
-            if (IsTokenValidForTransition(transition, token))
+            if (transition.CanBeFollowedBy(token))
             {
                 stateValidTokens.Add(token);
             }

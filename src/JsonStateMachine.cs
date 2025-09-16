@@ -2,7 +2,7 @@ using System.Text;
 
 namespace libLlama2;
 
-public class JsonStateMachine
+public class JsonStateMachine : IStateMachine
 {
     public enum JsonState
     {
@@ -25,7 +25,7 @@ public class JsonStateMachine
         Error
     }
 
-    public class JsonTransition
+    public class JsonTransition : ITransition
     {
         public JsonState State { get; }
 
@@ -35,6 +35,15 @@ public class JsonStateMachine
         {
             State = state;
             Context = context;
+        }
+
+        public bool CanBeFollowedBy(Token token)
+        {
+            if (string.IsNullOrEmpty(token.Value)) return false;
+
+            var tempMachine = new JsonStateMachine(this);
+            tempMachine.Process(token.Value);
+            return tempMachine.IsValid;
         }
 
         public override bool Equals(object? obj)
@@ -55,7 +64,7 @@ public class JsonStateMachine
 
     private JsonState CurrentContext => context.Count > 0 ? context.Peek() : JsonState.Initial;
 
-    public JsonTransition Transition => new JsonTransition(State, CurrentContext);
+    public ITransition Transition => new JsonTransition(State, CurrentContext);
 
     private readonly Stack<JsonState> context = new();
 
@@ -66,6 +75,9 @@ public class JsonStateMachine
     public event StateChangedHandler? StateChanged;
 
     public JsonStateMachine()
+    {}
+
+    public JsonStateMachine(ITransition transition) : this((JsonTransition)transition)
     {
     }
 
@@ -315,7 +327,7 @@ public class JsonStateMachine
         StateChanged?.Invoke(newState);
     }
 
-    public IEnumerable<JsonTransition> PossibleTransitions()
+    public IEnumerable<ITransition> PossibleTransitions()
     {
         foreach (JsonState state in Enum.GetValues(typeof(JsonState)))
         {
