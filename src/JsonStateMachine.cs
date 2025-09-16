@@ -25,9 +25,37 @@ public class JsonStateMachine
         Error
     }
 
-    public JsonState State { get; private set; } = JsonState.Initial;
+    public class JsonTransition
+    {
+        public JsonState State { get; }
 
-    public JsonState CurrentContext => context.Count > 0 ? context.Peek() : default;
+        public JsonState Context { get; }
+
+        public JsonTransition(JsonState state, JsonState context)
+        {
+            State = state;
+            Context = context;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is JsonTransition other)
+                return other.State == State && other.Context == Context;
+
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Context, State);
+        }
+    }
+
+    private JsonState State { get; set; } = JsonState.Initial;
+
+    private JsonState CurrentContext => context.Count > 0 ? context.Peek() : JsonState.Initial;
+
+    public JsonTransition Transition => new JsonTransition(State, CurrentContext);
 
     private readonly Stack<JsonState> context = new();
 
@@ -41,11 +69,14 @@ public class JsonStateMachine
     {
     }
 
-    public JsonStateMachine(JsonState initialState, JsonState initialContextState)
+    public JsonStateMachine(JsonTransition transition)
     {
-        this.State = initialState;
-        this.context = new Stack<JsonState>([initialContextState]);
+        this.State = transition.State;
+        this.context = new Stack<JsonState>([transition.Context]);
     }
+
+    public bool IsValid { get => State != JsonState.Error; }
+    public bool IsComplete { get => State == JsonState.Complete; }
 
     public void Reset()
     {
@@ -282,6 +313,56 @@ public class JsonStateMachine
         if (State == newState) return;
         State = newState;
         StateChanged?.Invoke(newState);
+    }
+
+    public IEnumerable<JsonTransition> PossibleTransitions()
+    {
+        foreach (JsonState state in Enum.GetValues(typeof(JsonState)))
+        {
+            var contexts = PossibleContextsForState(state);
+            foreach (var context in contexts)
+            {
+                yield return new JsonTransition(state, context);
+            }
+        }
+    }
+
+     private IList<JsonState> PossibleContextsForState(JsonState state)
+    {
+        var contexts = new List<JsonState>();
+        switch (state)
+        {
+            case JsonState.ExpectingCommaOrEnd:
+            case JsonState.InString:
+            case JsonState.InNumber:
+            case JsonState.InBoolean:
+            case JsonState.InNull:
+                contexts.Add(JsonState.InObject);
+                contexts.Add(JsonState.InArray);
+                break;
+            case JsonState.ExpectingKey:
+            case JsonState.ExpectingColon:
+            case JsonState.InStringKey:
+            case JsonState.ExpectingFirstKey:
+                contexts.Add(JsonState.InObject);
+                break;
+            case JsonState.ExpectingValue:
+                contexts.Add(JsonState.InObject);
+                contexts.Add(JsonState.InArray);
+                contexts.Add(JsonState.Initial);
+                break;
+            case JsonState.ExpectingFirstValue:
+                contexts.Add(JsonState.InArray);
+                break;
+            case JsonState.InStringEscaped:
+                contexts.Add(JsonState.InString);
+                contexts.Add(JsonState.InStringKey);
+                break;
+            default:
+                contexts.Add(JsonState.Initial);
+                break;
+        }
+        return contexts;
     }
 
 }

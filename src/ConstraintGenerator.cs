@@ -1,6 +1,6 @@
 namespace libLlama2;
 
-using JsonState = JsonStateMachine.JsonState;
+using JsonTransition = JsonStateMachine.JsonTransition;
 
 public class ConstraintGenerator
 {
@@ -10,14 +10,14 @@ public class ConstraintGenerator
 
     private List<Token> constraintTokens = new();
 
-    private IDictionary<(JsonState, JsonState), Constraint> constraints;
+    private IDictionary<JsonTransition, Constraint> constraints;
 
-    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize) : this(tokenizer, vocabSize, new Dictionary<(JsonState, JsonState), Constraint>())
+    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize, JsonStateMachine stateMachine) : this(tokenizer, vocabSize, new Dictionary<JsonTransition, Constraint>())
     {
-        PrecomputeConstraints();
+        PrecomputeConstraints(stateMachine);
     }
 
-    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize, IDictionary<(JsonState, JsonState), Constraint> constraints)
+    public ConstraintGenerator(ITokenizer tokenizer, int vocabSize, IDictionary<JsonTransition, Constraint> constraints)
     {
         this.tokenizer = tokenizer;
         this.vocabSize = vocabSize;
@@ -29,101 +29,62 @@ public class ConstraintGenerator
         get => constraintTokens.Select(x => x.Id);
     }
 
-    private IEnumerable<Token> AllTokens() =>
-        Enumerable.Range(0, vocabSize).Select(x => new Token(x, tokenizer.Decode(x)));
-
-    private bool IsTokenValidForState(JsonState state, JsonState context, Token token)
-    {
-        if (string.IsNullOrEmpty(token.Value)) return false;
-
-        var tempMachine = new JsonStateMachine(state, context);
-        tempMachine.Process(token.Value);
-        return tempMachine.State != JsonState.Error;
-    }
-
     public Constraint? CurrentConstraint(JsonStateMachine stateMachine)
     {
-        var key = (stateMachine.State, stateMachine.CurrentContext);
-        if (constraints.TryGetValue(key, out var constraint))
+        if (constraints.TryGetValue(stateMachine.Transition, out var constraint))
             return constraint;
 
         return null;
     }
 
-    private void PrecomputeConstraints()
+    private IEnumerable<Token> AllTokens() =>
+        Enumerable.Range(0, vocabSize).Select(x => new Token(x, tokenizer.Decode(x)));
+
+    private bool IsTokenValidForTransition(JsonTransition transition, Token token)
     {
-        foreach (JsonState state in Enum.GetValues(typeof(JsonState)))
+        if (string.IsNullOrEmpty(token.Value)) return false;
+
+        var tempMachine = new JsonStateMachine(transition);
+        tempMachine.Process(token.Value);
+        return tempMachine.IsValid;
+    }
+
+    private void PrecomputeConstraints(JsonStateMachine stateMachine)
+    {
+        foreach (var transition in stateMachine.PossibleTransitions())
         {
-            var contexts = PossibleContextsForState(state);
-            foreach (var contextState in contexts)
-            {
-                var key = (state, contextState);
-                var stateValidTokens = new HashSet<Token>();
-                var stateInvalidTokens = new HashSet<Token>();
-
-                foreach (var token in AllTokens())
-                {
-                    if (IsTokenValidForState(state, contextState, token))
-                    {
-                        stateValidTokens.Add(token);
-                    }
-                    else
-                    {
-                        stateInvalidTokens.Add(token);
-                    }
-                }
-
-
-                if (stateValidTokens.Count <= stateInvalidTokens.Count)
-                {
-                    constraints[key] = new Constraint(true, constraintTokens.Count, stateValidTokens.Count);
-                    constraintTokens.AddRange(stateValidTokens);
-                }
-                else
-                {
-                    constraints[key] = new Constraint(false, constraintTokens.Count, stateInvalidTokens.Count);
-                    constraintTokens.AddRange(stateInvalidTokens);
-                }
-            }
+            PrecomputeConstraints(transition);
         }
     }
 
-    private IList<JsonState> PossibleContextsForState(JsonState state)
+    private void PrecomputeConstraints(JsonTransition transition)
     {
-        var contexts = new List<JsonState>();
-        switch (state)
+        var stateValidTokens = new HashSet<Token>();
+        var stateInvalidTokens = new HashSet<Token>();
+
+        foreach (var token in AllTokens())
         {
-            case JsonState.ExpectingCommaOrEnd:
-            case JsonState.InString:
-            case JsonState.InNumber:
-            case JsonState.InBoolean:
-            case JsonState.InNull:
-                contexts.Add(JsonState.InObject);
-                contexts.Add(JsonState.InArray);
-                break;
-            case JsonState.ExpectingKey:
-            case JsonState.ExpectingColon:
-            case JsonState.InStringKey:
-            case JsonState.ExpectingFirstKey:
-                contexts.Add(JsonState.InObject);
-                break;
-            case JsonState.ExpectingValue:
-                contexts.Add(JsonState.InObject);
-                contexts.Add(JsonState.InArray);
-                contexts.Add(default);
-                break;
-            case JsonState.ExpectingFirstValue:
-                contexts.Add(JsonState.InArray);
-                break;
-            case JsonState.InStringEscaped:
-                contexts.Add(JsonState.InString);
-                contexts.Add(JsonState.InStringKey);
-                break;
-            default:
-                contexts.Add(default);
-                break;
+            if (IsTokenValidForTransition(transition, token))
+            {
+                stateValidTokens.Add(token);
+            }
+            else
+            {
+                stateInvalidTokens.Add(token);
+            }
         }
-        return contexts;
+
+
+        if (stateValidTokens.Count <= stateInvalidTokens.Count)
+        {
+            constraints[transition] = new Constraint(true, constraintTokens.Count, stateValidTokens.Count);
+            constraintTokens.AddRange(stateValidTokens);
+        }
+        else
+        {
+            constraints[transition] = new Constraint(false, constraintTokens.Count, stateInvalidTokens.Count);
+            constraintTokens.AddRange(stateInvalidTokens);
+        }
     }
 
 }

@@ -65,7 +65,7 @@ public class Transformer : ITransformer
 
         stateMachine = new JsonStateMachine();
 
-        constraintGenerator = new ConstraintGenerator(tokenizer, config.vocabSize);
+        constraintGenerator = new ConstraintGenerator(tokenizer, config.vocabSize, stateMachine);
 
         runstate = new RunState(cudaContext, ref config, kvDim, constraintGenerator.AllConstraints);
 
@@ -153,7 +153,7 @@ public class Transformer : ITransformer
                     yield return token;
 
                     stateMachine.Process(token);
-                    if (stateMachine.State == JsonStateMachine.JsonState.Complete)
+                    if (stateMachine.IsComplete)
                     {
                         stateMachine.Reset();
                         break;

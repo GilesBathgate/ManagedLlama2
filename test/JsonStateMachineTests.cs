@@ -1,6 +1,7 @@
 using Moq;
 
 using JsonState = libLlama2.JsonStateMachine.JsonState;
+using JsonTransition = libLlama2.JsonStateMachine.JsonTransition;
 
 namespace libLlama2.UnitTests;
 
@@ -46,7 +47,7 @@ public class JsonStateMachineTests
         var sm = new JsonStateMachine();
         sm.Process(json);
         sm.Complete();
-        Assert.Equal(JsonState.Complete, sm.State);
+        Assert.True(sm.IsComplete);
     }
 
     [Theory]
@@ -69,7 +70,7 @@ public class JsonStateMachineTests
         var sm = new JsonStateMachine();
         sm.Process(json);
         sm.Complete();
-        Assert.Equal(JsonState.Error, sm.State);
+        Assert.False(sm.IsValid);
     }
 
     [Theory]
@@ -86,7 +87,7 @@ public class JsonStateMachineTests
     {
         var sm = new JsonStateMachine();
         sm.Process(json);
-        Assert.Equal(expected, sm.State);
+        Assert.Equal(expected, sm.Transition.State);
     }
 
     [Fact]
@@ -99,7 +100,7 @@ public class JsonStateMachineTests
         sm.Process(json);
         sm.Complete();
 
-        Assert.Equal(JsonState.Complete, sm.State);
+        Assert.True(sm.IsComplete);
         Assert.Equal(new[] {
             JsonState.ExpectingFirstKey,
             JsonState.InStringKey,
@@ -154,8 +155,8 @@ public class JsonStateMachineTests
         foreach (var token in allTokens)
             tokenizerMock.Setup(t => t.Decode(token.Id)).Returns(token.Value);
 
-        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Count);
-        var sm = new JsonStateMachine(state, context);
+        var sm = new JsonStateMachine(new JsonTransition(state, context));
+        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Count, sm);
 
         var constraint = generator.CurrentConstraint(sm);
         Assert.NotNull(constraint);
@@ -195,8 +196,8 @@ public class JsonStateMachineTests
         foreach (var token in allTokens)
             tokenizerMock.Setup(t => t.Decode(token.Id)).Returns(token.Value);
 
-        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length);
         var sm = new JsonStateMachine();
+        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length, sm);
 
         // 2. Helper function to get valid tokens based on current state
         Func<HashSet<int>> getValidTokenIds = () =>
@@ -220,8 +221,8 @@ public class JsonStateMachineTests
         sm.Process("{");
 
         // 4. Verify the new state and get the list of valid next tokens
-        Assert.Equal(JsonState.ExpectingFirstKey, sm.State);
-        Assert.Equal(JsonState.InObject, sm.CurrentContext);
+        Assert.Equal(JsonState.ExpectingFirstKey, sm.Transition.State);
+        Assert.Equal(JsonState.InObject, sm.Transition.Context);
         var nextTokenIds = getValidTokenIds();
 
         // A key or a closing brace are valid next tokens
@@ -233,8 +234,8 @@ public class JsonStateMachineTests
         sm.Process(keyToken.Value);
 
         // 6. Verify the new state and get the next constraints
-        Assert.Equal(JsonState.ExpectingColon, sm.State);
-        Assert.Equal(JsonState.InObject, sm.CurrentContext);
+        Assert.Equal(JsonState.ExpectingColon, sm.Transition.State);
+        Assert.Equal(JsonState.InObject, sm.Transition.Context);
         nextTokenIds = getValidTokenIds();
 
         // Only a colon is valid
@@ -245,8 +246,8 @@ public class JsonStateMachineTests
         sm.Process(colonToken.Value);
 
         // 8. Verify new state and constraints
-        Assert.Equal(JsonState.ExpectingValue, sm.State);
-        Assert.Equal(JsonState.InObject, sm.CurrentContext);
+        Assert.Equal(JsonState.ExpectingValue, sm.Transition.State);
+        Assert.Equal(JsonState.InObject, sm.Transition.Context);
         nextTokenIds = getValidTokenIds();
 
         // A value (like true/false) is valid. A string is also a valid value.
@@ -259,8 +260,8 @@ public class JsonStateMachineTests
         sm.Process(trueToken.Value);
 
         // 10. Verify new state and constraints
-        Assert.Equal(JsonState.ExpectingCommaOrEnd, sm.State);
-        Assert.Equal(JsonState.InObject, sm.CurrentContext);
+        Assert.Equal(JsonState.ExpectingCommaOrEnd, sm.Transition.State);
+        Assert.Equal(JsonState.InObject, sm.Transition.Context);
         nextTokenIds = getValidTokenIds();
 
         // A closing brace is valid
@@ -271,8 +272,8 @@ public class JsonStateMachineTests
         sm.Process(closeBraceToken.Value);
 
         // 12. Final state should be Complete
-        Assert.Equal(JsonState.Complete, sm.State);
-        Assert.Equal(default, sm.CurrentContext);
+        Assert.Equal(JsonState.Complete, sm.Transition.State);
+        Assert.Equal(default, sm.Transition.Context);
     }
 
     [Fact]
@@ -290,10 +291,9 @@ public class JsonStateMachineTests
             tokenizerMock.Setup(t => t.Decode(token.Id)).Returns(token.Value);
 
         // We are in a string, inside an array context
-        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length);
+        var sm = new JsonStateMachine(new JsonTransition(JsonState.InString, JsonState.InArray));
+        var generator = new ConstraintGenerator(tokenizerMock.Object, allTokens.Length, sm);
 
-        // Use reflection to get the precomputed tokens
-        var sm = new JsonStateMachine(JsonState.InString, JsonState.InArray);
         var constraint = generator.CurrentConstraint(sm);
         Assert.NotNull(constraint);
 
