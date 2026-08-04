@@ -66,7 +66,7 @@ If a question does not make any sense, or is not factually coherent, explain why
         await writer.WriteAsync(content);
     }
 
-    static async Task ServeWebSocket(HttpListenerContext context, string modelPath, string tokenizerPath)
+    static async Task ServeWebSocket(HttpListenerContext context, string modelPath, string tokenizerPath, string? dictionaryPath)
     {
         var webSocketContext = await context.AcceptWebSocketAsync(subProtocol);
         var webSocket = webSocketContext.WebSocket;
@@ -82,7 +82,13 @@ If a question does not make any sense, or is not factually coherent, explain why
             }
         }
 
-        var transformer = new Transformer(modelPath, tokenizerPath);
+        IConstraintStateMachine? stateMachine = null;
+        if (!string.IsNullOrEmpty(dictionaryPath))
+        {
+            stateMachine = new DictionaryStateMachine(dictionaryPath);
+        }
+
+        var transformer = new Transformer(modelPath, tokenizerPath, stateMachine: stateMachine);
         var tokens = transformer.Chat(systemPrompt, ReadInput(webSocket).ToBlockingEnumerable());
 
         foreach (var token in tokens)
@@ -96,12 +102,13 @@ If a question does not make any sense, or is not factually coherent, explain why
     {
         if (args.Length < 2)
         {
-            Console.WriteLine("Usage: Program.exe <model.bin> <tokenizer.bin>");
+            Console.WriteLine("Usage: Program.exe <model.bin> <tokenizer.bin> [dictionary.txt]");
             return;
         }
 
         var modelPath = args[0];
         var tokenizerPath = args[1];
+        var dictionaryPath = args.Length >= 3 ? args[2] : null;
 
         var listener = new HttpListener();
         var prefix = $"http://{hostname}:{port}/";
@@ -115,7 +122,7 @@ If a question does not make any sense, or is not factually coherent, explain why
             if (!context.Request.IsWebSocketRequest)
                 await ServeWebPage(context);
             else
-                await ServeWebSocket(context, modelPath, tokenizerPath);
+                await ServeWebSocket(context, modelPath, tokenizerPath, dictionaryPath);
         }
     }
 }

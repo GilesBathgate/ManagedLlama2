@@ -6,7 +6,7 @@ public class Token
 
     public string Value { get; }
 
-    internal Token(int id, string value)
+    public Token(int id, string value)
     {
         Id = id;
         Value = value;
@@ -17,4 +17,9 @@ public class Token
 
     public static implicit operator string(Token source) =>
         source.ToString();
+
+    public override bool Equals(object? obj) =>
+         (obj is Token other) && Id == other.Id && Value == other.Value;
+
+    public override int GetHashCode() => Id;
 }

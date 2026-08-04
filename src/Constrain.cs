@@ -11,6 +11,6 @@ public class Constrain : Module
         kernel.BlockDimensions = 1024;
     }
 
-    public void Forward(CudaDeviceVariable<Half> logits, int size, CudaDeviceVariable<int> constraint, bool allow) =>
-        base.Forward(logits.DevicePointer, size, constraint.DevicePointer, constraint.Size, allow);
+    public void Forward(CudaDeviceVariable<Half> logits, int size, CudaDeviceVariable<int> constraints, Constraint constraint) =>
+        base.Forward(logits.DevicePointer, size, constraints.DevicePointer, constraint.Index, constraint.Size, constraint.Allowed);
 }

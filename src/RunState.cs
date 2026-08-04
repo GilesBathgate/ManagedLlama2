@@ -24,9 +24,11 @@ public class RunState
 
     public readonly CudaDeviceVariable<int> indices;
 
-    public CudaDeviceVariable<int>? constraints;
+    public CudaDeviceVariable<int> constraints;
 
-    public RunState(CudaContext cudaContext, ref Config config, int kvDim)
+    public Constraint? constraint;
+
+    public RunState(CudaContext cudaContext, ref Config config, int kvDim, IEnumerable<int> allConstraints)
     {
         int CalculateMaxUsableSequence(Config config)
         {
@@ -53,5 +55,13 @@ public class RunState
         valueCache = new CudaDeviceVariable<Half>(config.numLayers * config.seqLength * kvDim);
         tokens = new CudaDeviceVariable<int>(config.seqLength);
         indices = new CudaDeviceVariable<int>(config.vocabSize);
+
+        var constraints = allConstraints?.ToArray() ?? Array.Empty<int>();
+        int allocationSize = Math.Max(constraints.Length, config.vocabSize);
+        this.constraints = new CudaDeviceVariable<int>(allocationSize);
+        if (constraints.Length > 0)
+        {
+            this.constraints.CopyToDevice(constraints);
+        }
     }
 }

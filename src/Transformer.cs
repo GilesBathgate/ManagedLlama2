@@ -39,11 +39,15 @@ public class Transformer : ITransformer
 
     private readonly ISampler sampler;
 
-    public Transformer(string modelPath, string tokenizerPath = "tokenizer.bin", float temperature = 0.5f, float topP = 0.9f) :
-        this(File.OpenRead(modelPath), tokenizerPath, temperature, topP)
+    private readonly IConstraintStateMachine? stateMachine;
+
+    private readonly ConstraintGenerator? constraintGenerator;
+
+    public Transformer(string modelPath, string tokenizerPath = "tokenizer.bin", float temperature = 0.5f, float topP = 0.9f, IConstraintStateMachine? stateMachine = null) :
+        this(File.OpenRead(modelPath), tokenizerPath, temperature, topP, stateMachine)
     { }
 
-    public Transformer(FileStream fileStream, string tokenizerPath, float temperature, float topP)
+    public Transformer(FileStream fileStream, string tokenizerPath, float temperature, float topP, IConstraintStateMachine? stateMachine = null)
     {
         int deviceID = 0;
         cudaContext = new CudaContext(deviceID);
@@ -59,7 +63,26 @@ public class Transformer : ITransformer
 
         tokenizer = new Tokenizer(tokenizerPath, config.vocabSize);
 
-        runstate = new RunState(cudaContext, ref config, kvDim);
+        this.stateMachine = stateMachine;
+
+        if (stateMachine != null)
+        {
+            if (stateMachine is IDynamicConstraintStateMachine)
+            {
+                constraintGenerator = null;
+                runstate = new RunState(cudaContext, ref config, kvDim, Enumerable.Empty<int>());
+            }
+            else
+            {
+                constraintGenerator = new ConstraintGenerator(tokenizer, config.vocabSize, stateMachine);
+                runstate = new RunState(cudaContext, ref config, kvDim, constraintGenerator.AllConstraints);
+            }
+        }
+        else
+        {
+            constraintGenerator = null;
+            runstate = new RunState(cudaContext, ref config, kvDim, Enumerable.Empty<int>());
+        }
 
         sampler = new Sampler(cudaContext, config, runstate, temperature, topP);
 
@@ -131,16 +154,50 @@ public class Transformer : ITransformer
 
                 var generateToken = nextPos >= userPos;
 
-                var token = sampler.Sample(nextPos, generateToken);
+                if (generateToken && stateMachine != null)
+                {
+                    if (stateMachine is IDynamicConstraintStateMachine dynamicSM)
+                    {
+                        var (allowed, tokenIds) = dynamicSM.GetActiveTokens(tokenizer, config.vocabSize);
+                        runstate.constraints.CopyToDevice(tokenIds.ToArray());
+                        runstate.constraint = new Constraint(allowed, 0, tokenIds.Count);
+                    }
+                    else if (constraintGenerator != null)
+                    {
+                        runstate.constraint = constraintGenerator.CurrentConstraint(stateMachine);
+                    }
+                    else
+                    {
+                        runstate.constraint = null;
+                    }
+                }
+                else
+                {
+                    runstate.constraint = null;
+                }
+
+                var tokenId = sampler.Sample(nextPos, generateToken);
 
                 if (generateToken)
                 {
-                    if (token < 3) break;
 
-                    var piece = tokenizer.Decode(prev, token);
-                    yield return new Token(token, piece);
+                    if (tokenId < 3) break;
+
+                    var piece = tokenizer.Decode(prev, tokenId);
+                    var token = new Token(tokenId, piece);
+                    yield return token;
+
+                    if (stateMachine != null)
+                    {
+                        stateMachine.Process(token);
+                        if (stateMachine.IsComplete)
+                        {
+                            stateMachine.Reset();
+                            break;
+                        }
+                    }
                 }
-                prev = token;
+                prev = tokenId;
             }
             yield return new Token(0, Environment.NewLine);
             ++pos;
