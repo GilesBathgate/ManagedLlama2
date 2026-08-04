@@ -122,4 +122,34 @@ public class DictionaryStateMachineTests
         Assert.DoesNotContain(0, allowedSet); // " pie is" is invalid
         Assert.Contains(1, allowedSet); // " pie good" is valid
     }
+
+    [Fact]
+    public void TestCapitalizationConstraints()
+    {
+        var sm = new DictionaryStateMachine(sampleWords);
+
+        var tokenizerMock = new Mock<ITokenizer>();
+        tokenizerMock.Setup(t => t.Decode(0)).Returns("apple"); // valid lowercase
+        tokenizerMock.Setup(t => t.Decode(1)).Returns("Apple"); // valid title case
+        tokenizerMock.Setup(t => t.Decode(2)).Returns("appLe"); // invalid mid-word uppercase
+        tokenizerMock.Setup(t => t.Decode(3)).Returns("APPLE"); // invalid mid-word uppercase
+
+        var (allowed, tokenIds) = sm.GetActiveTokens(tokenizerMock.Object, 4);
+
+        var allowedSet = new HashSet<int>();
+        if (allowed)
+        {
+            allowedSet.UnionWith(tokenIds);
+        }
+        else
+        {
+            allowedSet.UnionWith(new[] { 0, 1, 2, 3 });
+            allowedSet.ExceptWith(tokenIds);
+        }
+
+        Assert.Contains(0, allowedSet); // "apple" (valid)
+        Assert.Contains(1, allowedSet); // "Apple" (valid)
+        Assert.DoesNotContain(2, allowedSet); // "appLe" (invalid)
+        Assert.DoesNotContain(3, allowedSet); // "APPLE" (invalid)
+    }
 }

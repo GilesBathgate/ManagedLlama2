@@ -155,6 +155,10 @@ public class DictionaryStateMachine : IConstraintStateMachine, IDynamicConstrain
                 int start = i;
                 while (i < full.Length && IsWordChar(full[i]))
                 {
+                    if (i > start && char.IsUpper(full[i]))
+                    {
+                        return false;
+                    }
                     i++;
                 }
                 string word = full.Substring(start, i - start).ToLowerInvariant();
