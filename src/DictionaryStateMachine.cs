@@ -144,9 +144,31 @@ public class DictionaryStateMachine : IConstraintStateMachine, IDynamicConstrain
         return full.Substring(i + 1);
     }
 
+    private static bool HasMidWordPunctuation(string full)
+    {
+        for (int i = 1; i < full.Length - 1; i++)
+        {
+            char c = full[i];
+            if (!IsWordChar(c) && !char.IsWhiteSpace(c))
+            {
+                if (IsWordChar(full[i - 1]) && IsWordChar(full[i + 1]))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private bool IsValidContinuation(string prefix, string tokenText)
     {
         string full = prefix + tokenText;
+
+        if (HasMidWordPunctuation(full))
+        {
+            return false;
+        }
+
         int i = 0;
         while (i < full.Length)
         {

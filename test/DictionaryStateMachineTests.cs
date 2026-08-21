@@ -152,4 +152,34 @@ public class DictionaryStateMachineTests
         Assert.DoesNotContain(2, allowedSet); // "appLe" (invalid)
         Assert.DoesNotContain(3, allowedSet); // "APPLE" (invalid)
     }
+
+    [Fact]
+    public void TestPunctuationConstraints()
+    {
+        var sm = new DictionaryStateMachine(sampleWords);
+
+        var tokenizerMock = new Mock<ITokenizer>();
+        tokenizerMock.Setup(t => t.Decode(0)).Returns("apple, pie"); // valid punctuation with space
+        tokenizerMock.Setup(t => t.Decode(1)).Returns("apple."); // valid end of sentence
+        tokenizerMock.Setup(t => t.Decode(2)).Returns("apple-pie"); // invalid mid-word hyphen
+        tokenizerMock.Setup(t => t.Decode(3)).Returns("apple,pie"); // invalid mid-word comma without space
+
+        var (allowed, tokenIds) = sm.GetActiveTokens(tokenizerMock.Object, 4);
+
+        var allowedSet = new HashSet<int>();
+        if (allowed)
+        {
+            allowedSet.UnionWith(tokenIds);
+        }
+        else
+        {
+            allowedSet.UnionWith(new[] { 0, 1, 2, 3 });
+            allowedSet.ExceptWith(tokenIds);
+        }
+
+        Assert.Contains(0, allowedSet); // "apple, pie" (valid)
+        Assert.Contains(1, allowedSet); // "apple." (valid)
+        Assert.DoesNotContain(2, allowedSet); // "apple-pie" (invalid)
+        Assert.DoesNotContain(3, allowedSet); // "apple,pie" (invalid)
+    }
 }
