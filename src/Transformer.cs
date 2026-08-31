@@ -39,6 +39,13 @@ public class Transformer : ITransformer
 
     private readonly ISampler sampler;
 
+    public int Position => runstate.Position;
+
+    public void Rollback(int position)
+    {
+        runstate.Rollback(position);
+    }
+
     public Transformer(string modelPath, string tokenizerPath = "tokenizer.bin", float temperature = 0.5f, float topP = 0.9f) :
         this(File.OpenRead(modelPath), tokenizerPath, temperature, topP)
     { }
@@ -89,19 +96,22 @@ public class Transformer : ITransformer
     public IEnumerable<Token> Generate(string prompt, int steps)
     {
         var promptTokens = tokenizer.Encode(prompt, true);
+        var startPos = runstate.Position;
 
-        runstate.tokens.CopyToDevice(promptTokens);
+        runstate.tokens.CopyToDevice(promptTokens, startPos * sizeof(int));
 
         var prev = promptTokens[0];
-        for (int pos = 0; pos < steps; ++pos)
+        for (int pos = startPos; pos < steps; ++pos)
         {
 
             var nextPos = pos + 1;
             Forward(pos, nextPos);
+            runstate.Position = nextPos;
 
-            var generateToken = nextPos >= promptTokens.Length;
+            var promptIndex = nextPos - startPos;
+            var generateToken = promptIndex >= promptTokens.Length;
 
-            var token = generateToken ? sampler.Sample(nextPos, generateToken) : promptTokens[nextPos];
+            var token = generateToken ? sampler.Sample(nextPos, generateToken) : promptTokens[promptIndex];
 
             if (token < 3) break;
 
@@ -113,7 +123,7 @@ public class Transformer : ITransformer
 
     public IEnumerable<Token> Chat(string system_prompt, IEnumerable<string> userInput)
     {
-        var pos = 0;
+        var pos = runstate.Position;
         var prev = 0;
         foreach (var input in userInput)
         {
@@ -122,12 +132,13 @@ public class Transformer : ITransformer
 
             var promptTokens = tokenizer.Encode(prompt, true, false);
 
-            runstate.tokens.CopyToDevice(promptTokens, pos);
+            runstate.tokens.CopyToDevice(promptTokens, pos * sizeof(int));
 
             for (var userPos = pos + promptTokens.Length; pos < config.seqLength; ++pos)
             {
                 var nextPos = pos + 1;
                 Forward(pos, nextPos);
+                runstate.Position = nextPos;
 
                 var generateToken = nextPos >= userPos;
 
@@ -144,7 +155,14 @@ public class Transformer : ITransformer
             }
             yield return new Token(0, Environment.NewLine);
             ++pos;
+            runstate.Position = pos;
         }
+    }
+
+    public IEnumerable<Token> RollbackToTurn(int turnPosition, string system_prompt, IEnumerable<string> userInput)
+    {
+        Rollback(turnPosition);
+        return Chat(system_prompt, userInput);
     }
 
     private void MultiHeadAttention(CudaDeviceVariable<Half> output, CudaDeviceVariable<Half> query, CudaDeviceVariable<Half> key, CudaDeviceVariable<Half> value,
