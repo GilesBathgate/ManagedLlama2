@@ -115,6 +115,11 @@ public class Transformer : ITransformer
 
             var token = generateToken ? sampler.Sample(nextPos, generateToken) : promptTokens[promptIndex];
 
+            if (generateToken)
+            {
+                runstate.tokens.CopyToDevice(new[] { token }, nextPos * sizeof(int));
+            }
+
             if (token < 3) break;
 
             var piece = tokenizer.Decode(prev, token);
@@ -130,10 +135,11 @@ public class Transformer : ITransformer
         var prev = 0;
         foreach (var input in userInput)
         {
-            var prompt = pos == 0 ? $"[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n\n{input} [/INST]"
-                                  : $"[INST] {input} [/INST]";
+            var isFirstTurn = pos == 0;
+            var prompt = isFirstTurn ? $"[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n\n{input} [/INST]"
+                                     : $"[INST] {input} [/INST]";
 
-            var promptTokens = tokenizer.Encode(prompt, true, false);
+            var promptTokens = tokenizer.Encode(prompt, isFirstTurn, false);
             var startPos = pos;
 
             runstate.tokens.CopyToDevice(promptTokens, pos * sizeof(int));
@@ -151,6 +157,8 @@ public class Transformer : ITransformer
 
                 if (generateToken)
                 {
+                    runstate.tokens.CopyToDevice(new[] { token }, nextPos * sizeof(int));
+
                     if (token < 3) break;
 
                     var piece = tokenizer.Decode(prev, token);
@@ -158,9 +166,6 @@ public class Transformer : ITransformer
                 }
                 prev = token;
             }
-            yield return new Token(0, Environment.NewLine);
-            ++pos;
-            runstate.Position = pos;
         }
     }
 
