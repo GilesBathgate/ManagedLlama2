@@ -13,7 +13,7 @@ public class RollbackTests
         var tokenizerPath = "tokenizer.bin";
         var systemPrompt = "You are a helpful assistant.";
 
-        var transformer = new Transformer(modelPath, tokenizerPath);
+        var transformer = new Transformer(modelPath, tokenizerPath, temperature: 0.0f);
 
         // Turn 1
         var tokensTurn1 = transformer.Chat(systemPrompt, new[] { "Hello" });
