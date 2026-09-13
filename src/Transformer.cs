@@ -43,6 +43,7 @@ public class Transformer : ITransformer
 
     public void Rollback(int position)
     {
+        cudaContext.SetCurrent();
         runstate.Rollback(position);
     }
 
@@ -95,6 +96,7 @@ public class Transformer : ITransformer
 
     public IEnumerable<Token> Generate(string prompt, int steps)
     {
+        cudaContext.SetCurrent();
         var promptTokens = tokenizer.Encode(prompt, true);
         var startPos = runstate.Position;
 
@@ -123,6 +125,7 @@ public class Transformer : ITransformer
 
     public IEnumerable<Token> Chat(string system_prompt, IEnumerable<string> userInput)
     {
+        cudaContext.SetCurrent();
         var pos = runstate.Position;
         var prev = 0;
         foreach (var input in userInput)
@@ -131,18 +134,20 @@ public class Transformer : ITransformer
                                   : $"[INST] {input} [/INST]";
 
             var promptTokens = tokenizer.Encode(prompt, true, false);
+            var startPos = pos;
 
             runstate.tokens.CopyToDevice(promptTokens, pos * sizeof(int));
 
-            for (var userPos = pos + promptTokens.Length; pos < config.seqLength; ++pos)
+            for (var userPos = startPos + promptTokens.Length; pos < config.seqLength; ++pos)
             {
                 var nextPos = pos + 1;
                 Forward(pos, nextPos);
                 runstate.Position = nextPos;
 
-                var generateToken = nextPos >= userPos;
+                var promptIndex = nextPos - startPos;
+                var generateToken = promptIndex >= promptTokens.Length;
 
-                var token = sampler.Sample(nextPos, generateToken);
+                var token = generateToken ? sampler.Sample(nextPos, generateToken) : promptTokens[promptIndex];
 
                 if (generateToken)
                 {
@@ -175,6 +180,7 @@ public class Transformer : ITransformer
 
     private void Forward(int position, int nextPosition)
     {
+        cudaContext.SetCurrent();
         var headSize = config.dim / config.numHeads;
         var scale = 1.0f / MathF.Sqrt(headSize);
 

@@ -11,24 +11,27 @@ public class RollbackTests
     {
         var modelPath = "model-7b.bin";
         var tokenizerPath = "tokenizer.bin";
+        var systemPrompt = "You are a helpful assistant.";
 
-        // Full generation from scratch
-        var transformer1 = new Transformer(modelPath, tokenizerPath);
-        var tokensFull = transformer1.Generate("You are a helpful assistant.", 20);
-        var fullSb = new StringBuilder();
-        foreach (var t in tokensFull) fullSb.Append(t);
+        var transformer = new Transformer(modelPath, tokenizerPath);
 
-        // Generation with rollback: generate 10 tokens, rollback to position 5, then continue generation
-        var transformer2 = new Transformer(modelPath, tokenizerPath);
-        var tokensPart1 = transformer2.Generate("You are a helpful assistant.", 10);
-        foreach (var _ in tokensPart1) { } // evaluate first 10 steps
+        // Turn 1
+        var tokensTurn1 = transformer.Chat(systemPrompt, new[] { "Hello" });
+        foreach (var _ in tokensTurn1) { }
+        var posAfterTurn1 = transformer.Position;
 
-        transformer2.Rollback(5); // rewind sequence position to N=5
-        var tokensResumed = transformer2.Generate("You are a helpful assistant.", 20);
-        var resumedSb = new StringBuilder();
-        foreach (var t in tokensResumed) resumedSb.Append(t);
+        // Turn 2
+        var tokensTurn2A = transformer.Chat(systemPrompt, new[] { "What is 2+2?" });
+        var sb2A = new StringBuilder();
+        foreach (var t in tokensTurn2A) sb2A.Append(t);
 
-        Assert.Equal(fullSb.ToString(), resumedSb.ToString());
+        // Rollback back to Turn 1 position and repeat Turn 2
+        transformer.Rollback(posAfterTurn1);
+        var tokensTurn2B = transformer.Chat(systemPrompt, new[] { "What is 2+2?" });
+        var sb2B = new StringBuilder();
+        foreach (var t in tokensTurn2B) sb2B.Append(t);
+
+        Assert.Equal(sb2A.ToString(), sb2B.ToString());
     }
 
     [Fact]

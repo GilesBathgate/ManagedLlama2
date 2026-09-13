@@ -48,14 +48,16 @@ If a question does not make any sense, or is not factually coherent, explain why
                     let avatar = false;
                     let currentPosition = 0;
 
+                    let pendingUserMsg = null;
+
                     function send() {{
                         const text = textarea.value;
                         if (!text) return;
                         const p = document.createElement('p');
                         p.className = 'user';
-                        p.dataset.position = currentPosition;
                         p.innerHTML = `&#x1F464; <span class='msg-text'>${{text}}</span> <button class='edit-btn' onclick='editTurn(this)'>Edit</button>`;
                         output.appendChild(p);
+                        pendingUserMsg = p;
 
                         websocket.send(JSON.stringify({{ action: 'chat', text: text }}));
                         textarea.value = '';
@@ -64,6 +66,7 @@ If a question does not make any sense, or is not factually coherent, explain why
 
                     window.editTurn = function(btn) {{
                         const p = btn.closest('.user');
+                        if (p.dataset.position === undefined) return;
                         const pos = parseInt(p.dataset.position);
                         const oldText = p.querySelector('.msg-text').innerText;
                         const newText = prompt('Edit your message:', oldText);
@@ -77,6 +80,7 @@ If a question does not make any sense, or is not factually coherent, explain why
                             node = next;
                         }}
                         p.querySelector('.msg-text').innerText = newText;
+                        pendingUserMsg = p;
 
                         websocket.send(JSON.stringify({{ action: 'edit', position: pos, text: newText }}));
                         avatar = true;
@@ -87,6 +91,10 @@ If a question does not make any sense, or is not factually coherent, explain why
                             const msg = JSON.parse(data);
                             if (msg.type === 'start_turn') {{
                                 currentPosition = msg.position;
+                                if (pendingUserMsg) {
+                                    pendingUserMsg.dataset.position = msg.position;
+                                    pendingUserMsg = null;
+                                }
                                 return;
                             }}
                         }} catch (e) {{ }}
