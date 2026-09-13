@@ -91,10 +91,10 @@ If a question does not make any sense, or is not factually coherent, explain why
                             const msg = JSON.parse(data);
                             if (msg.type === 'start_turn') {{
                                 currentPosition = msg.position;
-                                if (pendingUserMsg) {
+                                if (pendingUserMsg) {{
                                     pendingUserMsg.dataset.position = msg.position;
                                     pendingUserMsg = null;
-                                }
+                                }}
                                 return;
                             }}
                         }} catch (e) {{ }}
