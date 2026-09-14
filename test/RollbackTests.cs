@@ -6,6 +6,58 @@ namespace libLlama2.UnitTests;
 
 public class RollbackTests
 {
+    [Fact(Skip = "Requires CUDA GPU device")]
+    public void Test_RunState_Rollback_ValidPositions()
+    {
+        using var cudaContext = new ManagedCuda.CudaContext(0);
+        var config = new Config { seqLength = 100, dim = 128, numLayers = 1, vocabSize = 100, numHeads = 4, numKVHeads = 4, hiddenDim = 256 };
+        var runstate = new RunState(cudaContext, ref config, 128);
+
+        runstate.Position = 10;
+        Assert.Equal(10, runstate.Position);
+
+        runstate.Rollback(5);
+        Assert.Equal(5, runstate.Position);
+
+        runstate.Rollback(0);
+        Assert.Equal(0, runstate.Position);
+    }
+
+    [Fact(Skip = "Requires CUDA GPU device")]
+    public void Test_RunState_Rollback_InvalidPositions_ThrowsException()
+    {
+        using var cudaContext = new ManagedCuda.CudaContext(0);
+        var config = new Config { seqLength = 100, dim = 128, numLayers = 1, vocabSize = 100, numHeads = 4, numKVHeads = 4, hiddenDim = 256 };
+        var runstate = new RunState(cudaContext, ref config, 128);
+
+        runstate.Position = 10;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => runstate.Rollback(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => runstate.Rollback(11));
+    }
+
+    [Fact(Skip = "Requires CUDA GPU device and model file")]
+    public void Test_Chat_Baseline()
+    {
+        var modelPath = "model-7b.bin";
+        var tokenizerPath = "tokenizer.bin";
+        var systemPrompt = "You are a helpful assistant.";
+
+        var transformer = new Transformer(modelPath, tokenizerPath, temperature: 0.0f);
+
+        // Turn 1
+        var tokensTurn1 = transformer.Chat(systemPrompt, new[] { "Hello" });
+        foreach (var _ in tokensTurn1) { }
+
+        // Turn 2
+        var tokensTurn2 = transformer.Chat(systemPrompt, new[] { "What is 2+2?" });
+        var sb = new StringBuilder();
+        foreach (var t in tokensTurn2) sb.Append(t);
+
+        var output = sb.ToString();
+        Assert.Equal("Ah, a simple question to start with! *smiling* The answer to 2+2 is... (drumroll) 4!", output);
+    }
+
     [Fact(Skip = "Requires CUDA GPU device and model file")]
     public void Test_Chat_MultiTurn_Control()
     {
@@ -88,32 +140,26 @@ public class RollbackTests
     }
 
     [Fact]
-    public void Test_PositionTracking_Rollback_ValidPositions()
+    public void Test_PositionTracker_Logic()
     {
-        var state = new SequenceState();
-        state.Position = 10;
-        Assert.Equal(10, state.Position);
+        var tracker = new PositionTracker(10);
+        Assert.Equal(10, tracker.Position);
 
-        state.Rollback(5);
-        Assert.Equal(5, state.Position);
+        tracker.Rollback(5);
+        Assert.Equal(5, tracker.Position);
 
-        state.Rollback(0);
-        Assert.Equal(0, state.Position);
+        tracker.Rollback(0);
+        Assert.Equal(0, tracker.Position);
     }
 
-    [Fact]
-    public void Test_PositionTracking_Rollback_InvalidPositions_ThrowsException()
-    {
-        var state = new SequenceState();
-        state.Position = 10;
-
-        Assert.Throws<ArgumentOutOfRangeException>(() => state.Rollback(-1));
-        Assert.Throws<ArgumentOutOfRangeException>(() => state.Rollback(11));
-    }
-
-    private class SequenceState
+    private class PositionTracker
     {
         public int Position { get; set; }
+
+        public PositionTracker(int initialPosition)
+        {
+            Position = initialPosition;
+        }
 
         public void Rollback(int position)
         {

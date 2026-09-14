@@ -100,7 +100,7 @@ public class Transformer : ITransformer
         var promptTokens = tokenizer.Encode(prompt, true);
         var startPos = runstate.Position;
 
-        runstate.tokens.CopyToDevice(promptTokens, startPos * sizeof(int));
+        cudaContext.CopyToDevice(runstate.tokens.DevicePointer + startPos * sizeof(int), promptTokens);
 
         var prev = promptTokens[0];
         for (int pos = startPos; pos < steps; ++pos)
@@ -113,36 +113,36 @@ public class Transformer : ITransformer
             var promptIndex = nextPos - startPos;
             var generateToken = promptIndex >= promptTokens.Length;
 
-            var token = generateToken ? sampler.Sample(nextPos, generateToken) : promptTokens[promptIndex];
+            var sampled = sampler.Sample(nextPos, generateToken);
+            var token = generateToken ? sampled : promptTokens[promptIndex];
 
             if (generateToken)
             {
-                runstate.tokens.CopyToDevice(new[] { token }, nextPos * sizeof(int));
+                cudaContext.CopyToDevice(runstate.tokens.DevicePointer + nextPos * sizeof(int), new[] { token });
+
+                if (token < 3) break;
+
+                var piece = tokenizer.Decode(prev, token);
+                yield return new Token(token, piece);
             }
-
-            if (token < 3) break;
-
-            var piece = tokenizer.Decode(prev, token);
-            yield return new Token(token, piece);
             prev = token;
         }
     }
 
     public IEnumerable<Token> Chat(string system_prompt, IEnumerable<string> userInput)
     {
-        cudaContext.SetCurrent();
         var pos = runstate.Position;
         var prev = 0;
         foreach (var input in userInput)
         {
-            var isFirstTurn = pos == 0;
-            var prompt = isFirstTurn ? $"[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n\n{input} [/INST]"
-                                     : $"[INST] {input} [/INST]";
+            cudaContext.SetCurrent();
+            var prompt = pos == 0 ? $"[INST] <<SYS>>\n{system_prompt}\n<</SYS>>\n\n{input} [/INST]"
+                                  : $"[INST] {input} [/INST]";
 
-            var promptTokens = tokenizer.Encode(prompt, isFirstTurn, false);
+            var promptTokens = tokenizer.Encode(prompt, true, false);
             var startPos = pos;
 
-            runstate.tokens.CopyToDevice(promptTokens, pos * sizeof(int));
+            cudaContext.CopyToDevice(runstate.tokens.DevicePointer + pos * sizeof(int), promptTokens);
 
             for (var userPos = startPos + promptTokens.Length; pos < config.seqLength; ++pos)
             {
@@ -153,11 +153,12 @@ public class Transformer : ITransformer
                 var promptIndex = nextPos - startPos;
                 var generateToken = promptIndex >= promptTokens.Length;
 
-                var token = generateToken ? sampler.Sample(nextPos, generateToken) : promptTokens[promptIndex];
+                var sampled = sampler.Sample(nextPos, generateToken);
+                var token = generateToken ? sampled : promptTokens[promptIndex];
 
                 if (generateToken)
                 {
-                    runstate.tokens.CopyToDevice(new[] { token }, nextPos * sizeof(int));
+                    cudaContext.CopyToDevice(runstate.tokens.DevicePointer + nextPos * sizeof(int), new[] { token });
 
                     if (token < 3) break;
 
@@ -166,6 +167,8 @@ public class Transformer : ITransformer
                 }
                 prev = token;
             }
+            yield return new Token(0, Environment.NewLine);
+            pos = runstate.Position;
         }
     }
 
