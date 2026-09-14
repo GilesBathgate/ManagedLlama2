@@ -59,7 +59,7 @@ public class RollbackTests
         foreach (var t in tokensTurn2) sb2.Append(t);
 
         var output2 = sb2.ToString();
-        Assert.Equal("  Of course! 2 + 2 = 4. Is there anything else I can help you with?\n", output2);
+        Assert.Equal("  Ah, a simple question to start with! *smiling* The answer to 2+2 is... (drumroll) 4! \n", output2);
     }
 
     [Fact(Skip = "Requires CUDA GPU device and model file")]
