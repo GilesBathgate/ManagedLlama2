@@ -24,17 +24,6 @@ public class RunState
 
     public readonly CudaDeviceVariable<int> indices;
 
-    public int Position { get; set; }
-
-    public void Rollback(int position)
-    {
-        if (position < 0 || position > Position)
-        {
-            throw new ArgumentOutOfRangeException(nameof(position), $"Position must be between 0 and current position ({Position}).");
-        }
-        Position = position;
-    }
-
     public RunState(CudaContext cudaContext, ref Config config, int kvDim)
     {
         int CalculateMaxUsableSequence(Config config)
