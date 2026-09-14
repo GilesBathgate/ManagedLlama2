@@ -47,15 +47,19 @@ public class RollbackTests
 
         // Turn 1
         var tokensTurn1 = transformer.Chat(systemPrompt, new[] { "Hello" });
-        foreach (var _ in tokensTurn1) { }
+        var sb1 = new StringBuilder();
+        foreach (var t in tokensTurn1) sb1.Append(t);
+        var output1 = sb1.ToString();
+
+        Assert.False(string.IsNullOrWhiteSpace(output1));
 
         // Turn 2
         var tokensTurn2 = transformer.Chat(systemPrompt, new[] { "What is 2+2?" });
-        var sb = new StringBuilder();
-        foreach (var t in tokensTurn2) sb.Append(t);
+        var sb2 = new StringBuilder();
+        foreach (var t in tokensTurn2) sb2.Append(t);
 
-        var output = sb.ToString();
-        Assert.False(string.IsNullOrWhiteSpace(output));
+        var output2 = sb2.ToString();
+        Assert.False(string.IsNullOrWhiteSpace(output2));
     }
 
     [Fact(Skip = "Requires CUDA GPU device and model file")]
