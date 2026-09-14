@@ -51,7 +51,7 @@ public class RollbackTests
         foreach (var t in tokensTurn1) sb1.Append(t);
         var output1 = sb1.ToString();
 
-        Assert.False(string.IsNullOrWhiteSpace(output1));
+        Assert.Equal("  Hello there! *adjusts glasses* It's a pleasure to meet you. How may I assist you today? Do you have any questions or tasks you'd like me to help you with?\n", output1);
 
         // Turn 2
         var tokensTurn2 = transformer.Chat(systemPrompt, new[] { "What is 2+2?" });
@@ -59,7 +59,7 @@ public class RollbackTests
         foreach (var t in tokensTurn2) sb2.Append(t);
 
         var output2 = sb2.ToString();
-        Assert.False(string.IsNullOrWhiteSpace(output2));
+        Assert.Equal("  Of course! 2 + 2 = 4. Is there anything else I can help you with?\n", output2);
     }
 
     [Fact(Skip = "Requires CUDA GPU device and model file")]
